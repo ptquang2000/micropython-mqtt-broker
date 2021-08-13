@@ -19,7 +19,7 @@ def mqtt_server(wlan):
   ADDR = usocket.getaddrinfo(SERVER, PORT)[0][-1]
   server = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
   server.bind(ADDR)
-  print('SERVER START', SERVER, str(PORT))
+  print('[SERVER START]', SERVER, str(PORT))
   server.settimeout(3600.0)
   server.listen(1)
   return server
@@ -29,7 +29,6 @@ def run():
   wlan = wifi_conn()
   server = mqtt_server(wlan)
   while True:
-    print('Listening ...')
     conn, addr = server.accept()
     _thread.start_new_thread(control_packet.connect, (conn, addr))
 
