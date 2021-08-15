@@ -1,35 +1,42 @@
 import network
 import usocket
 import _thread
-import control_packet
+from connect import connect
 
-def wifi_conn():
-  wlan = network.WLAN(network.STA_IF)
-  wlan.active(True)
+SSID = 'Computer Network'
+password = '1921681251'
+PORT = 1883
 
-  wlan.connect('Computer Network', '1921681251')
-  while wlan.isconnected() == False:
-    pass
-  print('Connecting to Wifi Successfully')
-  return wlan
+class Server():
+  def __init__(self):
+    self.wlan = self.wifi_conn()
+    self.server = self.mqtt_server()
 
-def mqtt_server(wlan):
-  SERVER = wlan.ifconfig()[0]
-  PORT = 1883
-  ADDR = usocket.getaddrinfo(SERVER, PORT)[0][-1]
-  server = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
-  server.bind(ADDR)
-  print('[SERVER START]', SERVER, str(PORT))
-  server.settimeout(3600.0)
-  server.listen(1)
-  return server
+  def wifi_conn(self):
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.connect(SSID, password)
+    while wlan.isconnected() == False:
+      pass
+    print('Connecting to Wifi Successfully')
+    return wlan
 
-  
-def run():
-  wlan = wifi_conn()
-  server = mqtt_server(wlan)
-  while True:
-    conn, addr = server.accept()
-    _thread.start_new_thread(control_packet.connect, (conn, addr))
+  def mqtt_server(self):
+    SERVER = self.wlan.ifconfig()[0]
+    ADDR = usocket.getaddrinfo(SERVER, PORT)[0][-1]
+    server = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
+    server.bind(ADDR)
+    print('[SERVER START]', SERVER, str(PORT))
+    return server
 
-run()
+  def start(self):
+    self.server.settimeout(24*60*60.0)
+    print('Listenning ... ')
+    self.server.listen(1)
+    while True:
+      conn, addr = self.server.accept()
+      _thread.start_new_thread(connect, (conn, addr))
+
+if __name__ == '__main__':
+  server = Server()
+  server.start()

@@ -14,7 +14,8 @@ def connect_mqtt():
     else:
       print("Failed to connect, return code %d\n", rc)
   # Set Connecting Client ID
-  client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv5)
+  # client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv5)
+  client = mqtt_client.Client(client_id)
   client.on_connect = on_connect
   client.connect(broker, port)
   return client
@@ -34,15 +35,15 @@ def publish(client):
         print(f"Failed to send message to topic {topic}")
     msg_count += 1
     if msg_count == 10:
-      client.loop_stop()
-      client.disconnect()
       return
 
 def run():
   client = connect_mqtt()
   client.loop_start()
   publish(client)
+  client.loop_stop()
+  client.disconnect()
 
 
 if __name__ == '__main__':
-    run()
+  run()
