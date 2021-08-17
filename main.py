@@ -1,11 +1,11 @@
 import network
 import usocket
-import _thread
-from connect import connect
+from message.message import message, connect, publish
 
 SSID = 'Computer Network'
 password = '1921681251'
 PORT = 1883
+CONNECT = 1
 
 class Server():
   def __init__(self):
@@ -32,10 +32,13 @@ class Server():
   def start(self):
     self.server.settimeout(24*60*60.0)
     print('Listenning ... ')
-    self.server.listen(1)
+    self.server.listen(10)
     while True:
       conn, addr = self.server.accept()
-      _thread.start_new_thread(connect, (conn, addr))
+      msg = message(conn)
+      if msg.type == CONNECT:
+        print('\n----- [CONNECT]', str(addr[0]), str(addr[1]),'-----')
+        connect(msg)
 
 if __name__ == '__main__':
   server = Server()

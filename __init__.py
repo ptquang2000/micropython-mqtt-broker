@@ -1,1 +1,1 @@
-from connect import connect
+from message import message, connect, publish
