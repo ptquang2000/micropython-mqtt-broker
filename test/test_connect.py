@@ -7,7 +7,7 @@ import concurrent.futures
 broker = '192.168.0.110'
 port = 1883
 
-MSG_COUNT = 1
+MSG_COUNT = 5 
 topic = "/python/mqtt"
 def publish(client):
   msg_count = 0
@@ -33,7 +33,6 @@ def on_connect(client, userdata, flags, rc, properties):
 
 def on_log(client, userdata, level, buf):
   print('log:', buf)
-  print('level:', userdata)
 
 def connect_mqtt():
   client_id = f'mqtt-client-{random.randint(0, 10)}'
@@ -54,6 +53,6 @@ def run():
 
 if __name__ == '__main__':
   with concurrent.futures.ThreadPoolExecutor() as e:
-    clients = [e.submit(run) for _ in range(3)]
+    clients = [e.submit(run) for _ in range(1)]
     for f in concurrent.futures.as_completed(clients):
       print('done  thread')
