@@ -24,29 +24,34 @@ def publish(client):
     if msg_count == MSG_COUNT:
       break
 
-def on_connect(client, userdata, flags, rc, properties):
-  if rc == 0:
-    print("Connected to MQTT Broker!")
-  else:
-    print("Failed to connect, return code %d\n", rc)
-
 def on_log(client, userdata, level, buf):
   print('log:', buf)
 
-def connect_mqtt():
-  client_id = f'mqtt-client-{random.randint(0, 10)}'
+def connect_basic():
+  client_id = f'mqtt-client-0'
+  # Set Connecting Client ID
+  client = mqtt_client.Client(client_id, protocol=5)
+  client.on_log = on_log
+  client.connect(broker, port)
+  return client
+
+def connect_auth():
+  client_id = f'mqtt-client-0'
   # Set Connecting Client ID
   client = mqtt_client.Client(client_id, protocol=5)
   client.username_pw_set(username='mqtt', password='pass')
-  client.on_connect = on_connect
   client.on_log = on_log
   client.connect(broker, port)
   return client
 
 def run():
-  client = connect_mqtt()
+  client = connect_basic()
   client.loop_start()
-  publish(client)
+  time.sleep(2)
+  client.loop_stop()
+  client = connect_auth()
+  client.loop_start()
+  time.sleep(2)
   client.loop_stop()
   client.disconnect()
 
