@@ -6,6 +6,7 @@ RESERVED = 0
 CONNECT = 1
 CONNACK = 2 
 PUBLISH = 3
+SUBCRIBE = 8
 PINGREQ = 12
 PINGRESP = 13
 DISCONNECT = 14
@@ -25,6 +26,7 @@ PACKET_TRANS = {
     CONNECT: 'CONNECT',
     CONNACK: 'CONNACK',
     PUBLISH: 'PUBLISH',
+    SUBCRIBE: 'SUBCRIBE',
     PINGREQ: 'PINGREQ',
     PINGRESP: 'PINGRESP',
     DISCONNECT: 'DISCONNECT',
@@ -105,7 +107,31 @@ def publish_strategy(packet, buf):
 
   if property_length != 0:
     pass
-  packet.payload.update({'': buf})
+  packet.payload.update({'application_message': buf})
+
+  # process topic storage
+  topic = Topic(packet.topic_storage)
+  topic[packet.topic] = packet.p_application_message
+
+class Topic():
+  def __init__(self, topic):
+    self.topic = topic
+
+  def __setitem__(self, filters, app_msg):
+    topic_filters = str(filters).split('/')
+    topic = self.topic
+    for topic_filter in topic_filters[:-1]:
+      try:
+        if not isinstance(topic[topic_filter], dict):
+          raise KeyError
+        topic = topic[topic_filter]
+      except KeyError:
+        topic.update({topic_filter: dict()})
+        topic = topic[topic_filter]
+    topic.update({topic_filters[-1]: app_msg})
+
+def subcribe_strategy(packet, buf):
+  pass
 
 def disconnect_strategy(packet, buf):
   if len(buf) < 1:
@@ -146,12 +172,13 @@ def disconnect_strategy(packet, buf):
   packet.payload.update({'': None})
 
 class Packet():
-  def __init__(self, buf):
+  def __init__(self, buf, topics=None):
     self.packet_type = buf[0] >> 4
     self.flags = buf[0] & 15
     self.remain_length = 0 
     self.variable_header = dict()
     self.payload = dict()
+    self.topic_storage = topics
 
   def __str__(self):
     out = '\n-- [{0}]'.format(PACKET_TRANS[self.packet_type])
