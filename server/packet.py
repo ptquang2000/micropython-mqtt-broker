@@ -107,28 +107,9 @@ def publish_strategy(packet, buf):
 
   if property_length != 0:
     pass
+
   packet.payload.update({'application_message': buf})
-
-  # process topic storage
-  topic = Topic(packet.topic_storage)
-  topic[packet.topic] = packet.p_application_message
-
-class Topic():
-  def __init__(self, topic):
-    self.topic = topic
-
-  def __setitem__(self, filters, app_msg):
-    topic_filters = str(filters).split('/')
-    topic = self.topic
-    for topic_filter in topic_filters[:-1]:
-      try:
-        if not isinstance(topic[topic_filter], dict):
-          raise KeyError
-        topic = topic[topic_filter]
-      except KeyError:
-        topic.update({topic_filter: dict()})
-        topic = topic[topic_filter]
-    topic.update({topic_filters[-1]: app_msg})
+  packet.topic_storage[packet.topic] = packet.p_application_message
 
 def subcribe_strategy(packet, buf):
   pass
@@ -172,7 +153,7 @@ def disconnect_strategy(packet, buf):
   packet.payload.update({'': None})
 
 class Packet():
-  def __init__(self, buf, topics=None):
+  def __init__(self, buf, topics):
     self.packet_type = buf[0] >> 4
     self.flags = buf[0] & 15
     self.remain_length = 0 

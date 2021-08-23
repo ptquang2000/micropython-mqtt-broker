@@ -1,20 +1,5 @@
 import unittest
-import network
 from server import Server
-
-SSID = 'Computer Network'
-PASSWORD = '1921681251'
-PORT = 1883
-
-def wifi_conn():
-  wlan = network.WLAN(network.STA_IF)
-  wlan.active(True)
-  wlan.connect(SSID, PASSWORD)
-  while wlan.isconnected() == False:
-    pass
-  return wlan
-
-server = Server(wifi_conn().ifconfig()[0], PORT)
 
 class TestServer(unittest.TestCase):
 
@@ -50,3 +35,25 @@ class TestServer(unittest.TestCase):
       self.assertEqual(p.p_client_id, b'mqtt-client-0')
       self.assertEqual(p.p_username, b'mqtt')
       self.assertEqual(p.p_password, b'pass')
+
+SSID = 'Computer Network'
+PASSWORD = '1921681251'
+PORT = 1883
+
+def wifi_conn():
+  wlan = network.WLAN(network.STA_IF)
+  wlan.active(True)
+  wlan.connect(SSID, PASSWORD)
+  while wlan.isconnected() == False:
+    pass
+  return wlan
+
+if __name__ == '__main__':
+  server = Server('172.17.0.2', 1883)
+  unittest.main()
+  server._server.close()
+else:
+  import network
+  server = Server(wifi_conn().ifconfig()[0], PORT)
+  unittest.main()
+  server._server.close()
