@@ -2,27 +2,27 @@ import unittest
 from server import Server
 
 class TestSubscribe(unittest.TestCase):
-  def setUp(self):
-    self.p = server.loop_start(3)[2]
 
   def check_subscribe_default(self,
-      tp=8, pl=0, fl=2, pi=b'\x00\x02',
+      pt=8, pl=0, f=2, pi=b'\x00\x02',
       tf = [b'python/mqtt'], to=[0]):
-    self.assertEqual(self.p.packet_type, tp)
-    self.assertEqual(self.p.flags, fl)
+    self.assertEqual(self.p.packet_type, pt)
+    self.assertEqual(self.p.flags, f)
     self.assertEqual(self.p.property_length, pl)
     self.assertEqual(self.p.packet_identifier, pi)
-    self.assertEqual(self.p.p_topic_filters, tf)
-    self.assertEqual(self.p.p_topic_options, to)
-
-  def check_subscribe_topic(self):
-    topics = {b'python':{b'mqtt':b'this is a new messages: 0'}}
-    self.assertEqual(self.p.topic_storage.topics, topics)
-    self.assertIs(self.p.topic_storage, server.topics)
+    self.assertEqual(self.p.pl_topic_filters, tf)
+    self.assertEqual(self.p.pl_topic_options, to)
 
   def test_basic_subscribe(self):
-    self.check_subscribe_default()
-    self.check_subscribe_topic()
+    self.p = server.loop_start(3)[2]
+    self.check_subscribe_default(pi=b'\x00\x02')
+
+  def test_multiple_subscribe(self):
+    self.p = server.loop_start(4)[3]
+    self.check_subscribe_default(
+        tf=[b'python/mqtt', b'java/mqtt'],
+        pi=b'\x00\x03',
+        to=[0,0])
 
 SSID = 'Computer Network'
 PASSWORD = '1921681251'
@@ -36,17 +36,13 @@ def wifi_conn():
     pass
   return wlan
 
-try:
-  if __name__ == '__main__':
-    server = Server('172.17.0.2', 1883)
-    unittest.main()
-    server._server.close()
-  else:
-    import network
-    server = Server(wifi_conn().ifconfig()[0], PORT)
-    unittest.main()
-    server._server.close()
-except AssertionError as e:
-  print(e)
+if __name__ == '__main__':
+  server = Server('172.17.0.2', 1883)
+  unittest.main()
+  server._server.close()
+else:
+  import network
+  server = Server(wifi_conn().ifconfig()[0], PORT)
+  unittest.main()
   server._server.close()
 

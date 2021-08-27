@@ -58,6 +58,7 @@ class Packet():
     self.topic_storage = topics
     self.variable_header = dict()
     self.payload = dict()
+    self.property = dict()
 
   def checkflags(self):
     if self.packet_type in (SUBSCRIBE, UNSUBSCRIBE, PUBREL):
@@ -80,8 +81,10 @@ class Packet():
 
   def __getattr__(self, attr):
     try:
-      if str(attr)[0:2] == 'p_':
-        return self.payload[str(attr)[2:]]
+      if str(attr)[0:3] == 'pl_':
+        return self.payload[str(attr)[3:]]
+      if str(attr)[0:5] == 'prop_':
+        return self.property[str(attr)[5:]]
       return self.variable_header[str(attr)]
     except KeyError:
       if self.packet_type == PUBLISH:
@@ -178,14 +181,14 @@ class Packet():
       pass
 
     self.payload.update({'application_message': buf})
-    self.topic_storage[self.topic] = self.p_application_message
+    self.topic_storage[self.topic] = self.pl_application_message
 
   @property 
   def publish_response(self):
     fixed_header = (PUBLISH << 4 | RESERVED).to_bytes(1, 'big')
     
     buf = b''
-    for i, topic_filter in enumerate(self.p_topic_filters):
+    for i, topic_filter in enumerate(self.pl_topic_filters):
       topic_name = topic_filter
       property_length = 0
       payload = self.topic_storage[topic_filter]
@@ -210,8 +213,8 @@ class Packet():
       pass
     assert len(buf) != 0, 'Protocol Error'
 
-    topic_length, buf = int.from_bytes(buf[0:2], 'big'), buf[2:] 
     while len(buf) != 0:
+      topic_length, buf = int.from_bytes(buf[0:2], 'big'), buf[2:] 
       topic_filter, topic_option, buf = buf[0:topic_length], buf[topic_length], buf[topic_length+1:] 
       try:
         self.payload['topic_filters'].append(topic_filter)
@@ -228,7 +231,7 @@ class Packet():
 
     property_length = variable_byte_integer(0)
     reason_code = b''
-    for i in range(len(self.p_topic_filters)):
+    for i in range(len(self.pl_topic_filters)):
       reason_code += GRANTED_QOS0
 
     buf = identifier
