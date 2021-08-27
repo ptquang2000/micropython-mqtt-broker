@@ -6,7 +6,10 @@ RESERVED = 0
 CONNECT = 1
 CONNACK = 2 
 PUBLISH = 3
-SUBCRIBE = 8
+PUBREL = 6
+SUBSCRIBE = 8
+SUBPACK = 9
+UNSUBSCRIBE = 10
 PINGREQ = 12
 PINGRESP = 13
 DISCONNECT = 14
@@ -20,146 +23,47 @@ PROTOCOL_ERROR = b'\x82'
 IMPLEMENT_SPECIFIC_ERROR = b'\x83'
 UNSUPPORTED_PROTOCOL_VERSION = b'\x84'
 
+GRANTED_QOS0 = b'\x00'
+GRANTED_QOS1 = b'\x01'
+GRANTED_QOS2 = b'\x02'
+UNSPECIFIED_ERROR = b'\x80'
+NOT_AUTHORIZED = b'\x87'
+TOPIC_FILTER_INVALID = b'\x8f'
+PACKET_IDENTIFIER_IN_USE = b'\x91'
+QUOTA_EXCEEDED = b'\x97'
+SHARED_SUBSCRIPTION_NOT_SUPPORTED = b'\x9e'
+SUBSCRIPTION_IDENTIFIER_NOT_SUPPORTED = b'\xa1'
+WILDCARD_SUBSCRIPTION_NOT_SUPPORTED = b'\xa2'
+
 # Packet type translator
 PACKET_TRANS = {
     RESERVED: 'RESERVED',
     CONNECT: 'CONNECT',
     CONNACK: 'CONNACK',
     PUBLISH: 'PUBLISH',
-    SUBCRIBE: 'SUBCRIBE',
+    SUBSCRIBE: 'SUBSCRIBE',
+    SUBPACK: 'SUBPACK',
     PINGREQ: 'PINGREQ',
     PINGRESP: 'PINGRESP',
     DISCONNECT: 'DISCONNECT',
     }
-def connect_strategy(packet, buf):
-  # Variable header
-  name, buf = utf8_encoded_string(buf)
-  packet.variable_header.update({'protocol_name': name})
-
-  ver, buf = buf[0], buf[1:]
-  packet.variable_header.update({'protocol_version': ver})
-
-  flags, buf = '{0:08b}'.format(buf[0]), buf[1:]
-  packet.variable_header.update({
-    'username_flag': flags[0],
-    'password_flag': flags[1],
-    'will_retain': flags[2],
-    'will_QoS': flags[3:5],
-    'will_flag': flags[5],
-    'clean_start': flags[6],
-    'reserved': flags[7]
-    })
-
-  keep_alive, buf = buf[0:2], buf[2:]
-  packet.variable_header.update({'keep_alive': int.from_bytes(keep_alive, 'big')})
-
-  property_length, buf = variable_byte_integer(buf)
-  packet.variable_header.update({'property_length': property_length})
-  if property_length != 0:
-    pass
-
-  # Payload
-  client_id, buf = utf8_encoded_string(buf)
-  packet.payload.update({'client_id': client_id})
-
-  if packet.will_flag == 1:
-    property_length, buf = variable_byte_integer(buf)
-    packet.payload.update({'property_length': property_length})
-
-    properties = Properties(buf=buf, max_length=property_length)
-    packet.payload.update(properties.will_properties)
-
-    will_topic, buf = utf8_encoded_string(buf)
-    packet.payload.update({'will_topic': will_topic})
-
-    will_payload, buf = utf8_encoded_string(buf)
-    packet.payload.update({'will_payload': will_payload})
-
-  if packet.username_flag == '1':
-    username, buf = utf8_encoded_string(buf)
-    packet.payload.update({'username': username})
-  if packet.password_flag == '1':
-    password, buf = utf8_encoded_string(buf)
-    packet.payload.update({'password': password})
-
-def connack_strategy(packet):
-  conn_ack_flags = RESERVED
-  reason_code = SUCCESS
-
-  property_length = variable_byte_integer(0)
-  if packet.clean_start == 0 and reason_code == SUCCESS:
-    conn_ack_flags |= 1
-
-  buf = conn_ack_flags.to_bytes(1, 'big')
-  buf += reason_code
-  buf += property_length
-  return buf
-
-def publish_strategy(packet, buf):
-  topic, buf = utf8_encoded_string(buf)
-  packet.variable_header.update({'topic': topic})
-
-  if packet.QoS_level == 0:
-    packet_id, buf = buf[0:2], buf[2:]
-
-  property_length, buf = variable_byte_integer(buf)
-  packet.variable_header.update({'property_length': property_length})
-
-  if property_length != 0:
-    pass
-
-  packet.payload.update({'application_message': buf})
-  packet.topic_storage[packet.topic] = packet.p_application_message
-
-def subcribe_strategy(packet, buf):
-  pass
-
-def disconnect_strategy(packet, buf):
-  if len(buf) < 1:
-    rc = NORMAL_DISCONNECT
-    packet.variable_header.update({'reason_code': rc})
-  elif len(buf) < 2:
-    rc = buf[1]
-    packet.variable_header.update({'reason_code': rc})
-  else:
-    properties, buf = buf[1], buf[2:]
-    i = 0
-    try:
-      if property[i] == SESSION_EXPIRY_INTERVAL:
-        i += 1
-        self._session_expiry_interval = property[i:i+4]
-        i += 4
-        if self._session_expiry_interval.from_bytes('big') == 0:
-          pass
-        if property[i] == REASON_STRING:
-          i += 1
-        if property[i] == REASON_STRING:
-          pass
-        if property[i] == USER_PROPERTY:
-          i += 1
-          remain = property[i:]
-          while remain[0] != SERVER_REFERENCE:
-            name, remain = utf8_encoded_string(remain)
-            i += 2 + len(name)
-            value, remain = utf8_encoded_string(remain)
-            i += 2 + len(value)
-
-        if property[i] == SERVER_REFERENCE:
-          i += 1
-        if property[i] == SERVER_REFERENCE:
-          pass
-    except IndexError:
-      pass
-  packet.payload.update({'': None})
 
 class Packet():
   def __init__(self, buf, topics):
     self.packet_type = buf[0] >> 4
     self.flags = buf[0] & 15
+    self.checkflags()
+
     self.remain_length = 0 
+    self.topic_storage = topics
     self.variable_header = dict()
     self.payload = dict()
-    self.topic_storage = topics
+
+  def checkflags(self):
+    if self.packet_type in (SUBSCRIBE, UNSUBSCRIBE, PUBREL):
+      assert self.flags == 2, 'Flags for subscribe packet must be 2'
+    elif self.packet_type != PUBLISH:
+      assert self.flags == RESERVED, 'Flags for packet 0'
 
   def __str__(self):
     out = '\n-- [{0}]'.format(PACKET_TRANS[self.packet_type])
@@ -192,36 +96,208 @@ class Packet():
       else:
         raise AttributeError('Packet does not have "{0}" attribute'.format(attr))
 
+  def connect_request(self, buf):
+    # Variable header
+    name, buf = utf8_encoded_string(buf)
+    self.variable_header.update({'protocol_name': name})
+
+    ver, buf = buf[0], buf[1:]
+    self.variable_header.update({'protocol_version': ver})
+
+    flags, buf = '{0:08b}'.format(buf[0]), buf[1:]
+    self.variable_header.update({
+      'username_flag': flags[0],
+      'password_flag': flags[1],
+      'will_retain': flags[2],
+      'will_QoS': flags[3:5],
+      'will_flag': flags[5],
+      'clean_start': flags[6],
+      'reserved': flags[7]
+      })
+
+    keep_alive, buf = buf[0:2], buf[2:]
+    self.variable_header.update({'keep_alive': int.from_bytes(keep_alive, 'big')})
+
+    property_length, buf = variable_byte_integer(buf)
+    self.variable_header.update({'property_length': property_length})
+    if property_length != 0:
+      pass
+
+    # Payload
+    client_id, buf = utf8_encoded_string(buf)
+    self.payload.update({'client_id': client_id})
+
+    if self.will_flag == 1:
+      property_length, buf = variable_byte_integer(buf)
+      self.payload.update({'property_length': property_length})
+
+      properties = Properties(buf=buf, max_length=property_length)
+      self.payload.update(properties.will_properties)
+
+      will_topic, buf = utf8_encoded_string(buf)
+      self.payload.update({'will_topic': will_topic})
+
+      will_payload, buf = utf8_encoded_string(buf)
+      self.payload.update({'will_payload': will_payload})
+
+    if self.username_flag == '1':
+      username, buf = utf8_encoded_string(buf)
+      self.payload.update({'username': username})
+    if self.password_flag == '1':
+      password, buf = utf8_encoded_string(buf)
+      self.payload.update({'password': password})
+
   @property
-  def strategy(self):
+  def connack_response(self):
+    fixed_header = (CONNACK << 4 | RESERVED).to_bytes(1, 'big')
+
+    conn_ack_flags = RESERVED
+    reason_code = SUCCESS
+
+    property_length = variable_byte_integer(0)
+    if self.clean_start == 0 and reason_code == SUCCESS:
+      conn_ack_flags |= 1
+    buf = conn_ack_flags.to_bytes(1, 'big')
+    buf += reason_code
+    buf += property_length
+
+    remain_length = variable_byte_integer(len(buf))
+
+    return fixed_header + remain_length + buf
+
+  def publish_request(self, buf):
+    topic, buf = utf8_encoded_string(buf)
+    self.variable_header.update({'topic': topic})
+
+    if self.QoS_level == 0:
+      self_id, buf = buf[0:2], buf[2:]
+
+    property_length, buf = variable_byte_integer(buf)
+    self.variable_header.update({'property_length': property_length})
+    if property_length != 0:
+      pass
+
+    self.payload.update({'application_message': buf})
+    self.topic_storage[self.topic] = self.p_application_message
+
+  @property 
+  def publish_response(self):
+    fixed_header = (PUBLISH << 4 | RESERVED).to_bytes(1, 'big')
+    
+    buf = b''
+    for i, topic_filter in enumerate(self.p_topic_filters):
+      topic_name = topic_filter
+      property_length = 0
+      payload = self.topic_storage[topic_filter]
+      remain_length = 2 + len(topic_name) + 1 + property_length + len(payload)
+
+      buf += fixed_header 
+      buf += remain_length.to_bytes(1, 'big')
+      buf += b'\x00' + len(topic_name).to_bytes(1, 'big')
+      buf += topic_name
+      buf += variable_byte_integer(property_length)
+      buf += payload
+    
+    return buf
+
+  def subscribe_request(self, buf):
+    identifier, buf = buf[0:2], buf[2:]
+    self.variable_header.update({'packet_identifier': identifier})
+
+    property_length, buf = variable_byte_integer(buf)
+    self.variable_header.update({'property_length': property_length})
+    if property_length != 0:
+      pass
+    assert len(buf) != 0, 'Protocol Error'
+
+    topic_length, buf = int.from_bytes(buf[0:2], 'big'), buf[2:] 
+    while len(buf) != 0:
+      topic_filter, topic_option, buf = buf[0:topic_length], buf[topic_length], buf[topic_length+1:] 
+      try:
+        self.payload['topic_filters'].append(topic_filter)
+        self.payload['topic_options'].append(topic_option)
+      except KeyError:
+        self.payload.update({'topic_filters':[topic_filter]})
+        self.payload.update({'topic_options':[topic_option]})
+
+  @property
+  def subpack_response(self):
+    fixed_header = (SUBPACK << 4 | RESERVED).to_bytes(1, 'big')
+
+    identifier = self.packet_identifier
+
+    property_length = variable_byte_integer(0)
+    reason_code = b''
+    for i in range(len(self.p_topic_filters)):
+      reason_code += GRANTED_QOS0
+
+    buf = identifier
+    buf += property_length
+    buf += reason_code
+    
+    remain_length = variable_byte_integer(len(buf))
+    return fixed_header + remain_length + buf
+
+  def disconnect_request(self, buf):
+    if len(buf) < 1:
+      rc = NORMAL_DISCONNECT
+      self.variable_header.update({'reason_code': rc})
+    elif len(buf) < 2:
+      rc = buf[1]
+      self.variable_header.update({'reason_code': rc})
+    else:
+      properties, buf = buf[1], buf[2:]
+      i = 0
+      try:
+        if property[i] == SESSION_EXPIRY_INTERVAL:
+          i += 1
+          self._session_expiry_interval = property[i:i+4]
+          i += 4
+          if self._session_expiry_interval.from_bytes('big') == 0:
+            pass
+          if property[i] == REASON_STRING:
+            i += 1
+          if property[i] == REASON_STRING:
+            pass
+          if property[i] == USER_PROPERTY:
+            i += 1
+            remain = property[i:]
+            while remain[0] != SERVER_REFERENCE:
+              name, remain = utf8_encoded_string(remain)
+              i += 2 + len(name)
+              value, remain = utf8_encoded_string(remain)
+              i += 2 + len(value)
+
+          if property[i] == SERVER_REFERENCE:
+            i += 1
+          if property[i] == SERVER_REFERENCE:
+            pass
+      except IndexError:
+        pass
+    self.payload.update({'': None})
+
+  @property
+  def process_request(self):
     if CONNECT == self.packet_type:
-      return connect_strategy
+      return self.connect_request
     elif PUBLISH == self.packet_type:
-      return publish_strategy
+      return self.publish_request
+    elif SUBSCRIBE == self.packet_type:
+      return self.subscribe_request
     elif DISCONNECT == self.packet_type:
-      return disconnect_strategy
+      return self.disconnect_request
     else:
       raise AttributeError('Packet type strategy not available')
 
   @property
-  def response_strategy(self):
-    if CONNECT == self.packet_type:
-      return connack_strategy(self), CONNACK, RESERVED
-    else:
-      raise ValueError('Response action not available')
-
-  @property
   def response_packet(self):
-    try:
-      response, packet_type, flags = self.response_strategy
-    except ValueError:
-      return None
-    byte1 = (packet_type << 4 | flags).to_bytes(1, 'big')
-    remain_length = len(response)
-    byte2 = variable_byte_integer(remain_length)
-    return byte1 + byte2 + response
+    if CONNECT == self.packet_type:
+      return self.connack_response
+    elif SUBSCRIBE == self.packet_type:
+      return self.publish_response + self.subpack_response
+    return None
 
   def __lshift__(self, conn):
     self.remain_length, buf = variable_byte_integer(conn)
-    self.strategy(self, buf)
+    self.process_request(buf)
     return self.response_packet
