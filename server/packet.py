@@ -1,5 +1,4 @@
 from server.format import *
-from server.property import *
 import re
 
 
@@ -51,7 +50,7 @@ PACKET_NAME = {
 
 
 class Packet():
-    def __init__(self, buffer, topics):
+    def __init__(self, buffer):
         # Fixed Header
         self._packet_type = buffer[0] >> 4
         self._flag_bits = buffer[0] & 15
@@ -68,9 +67,6 @@ class Packet():
         self._variable_header = dict()
         self._payload = dict()
         self._property = dict()
-
-        self._topic_storage = topics
-
 
     def __str__(self):
         out = '\n-----[{0}]'.format(PACKET_NAME[self._packet_type])
@@ -171,19 +167,15 @@ class Packet():
 
     def publish_request(self, buffer):
         # Variable Header
-        topic, buffer = utf8_encoded_string(buffer)
-        self._variable_header.update({'topic': topic})
+        topic_name, buffer = utf8_encoded_string(buffer)
+        self._variable_header.update({'topic_name': topic_name})
 
-        if self.qos_level == 0:
-            self_id, buffer = buffer[0:2], buffer[2:]
+        if self.qos_level != QOS_0:
+            packet_identifier, buffer = buffer[0:2], buffer[2:]
+            self._variable_header.update({'packet_identifier': packet_identifier})
 
-        property_length, buffer = variable_byte_integer(buffer)
-        self._variable_header.update({'property_length': property_length})
-        if property_length != 0:
-            pass
-
+        # Payload
         self._payload.update({'application_message': buffer})
-        self._topic_storage[self.topic] = self.pl_application_message
 
 
     def subscribe_request(self, buffer):

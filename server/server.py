@@ -2,54 +2,11 @@ import usocket
 import _thread
 import time
 from server.packet import *
+from server.topic import *
 
-class Topic():
-    def __init__(self, topics=dict()):
-        self._topics = topics
-        self.lock = _thread.allocate_lock()
-
-
-    def __eq__(self, other):
-        return self._topics == other
-
-
-    # Readers
-    def __getitem__(self, filters):
-        filters = filters.split(b'/')
-        value = None
-        self.lock.acquire()
-        try:
-            topic = self._topics
-            while filters and isinstance(topic[filters[0]], dict):
-                topic = topic[filters[0]]
-                filters = filters[1:]
-            else:
-                value = topic[filters[0]]
-        except (KeyError, IndexError):
-            pass
-        self.lock.release()
-        return value
-
-
-    # Writers 
-    def __setitem__(self, filters, app_msg):
-        self.lock.acquire()
-        filters = filters.split(b'/')
-        topic = self._topics
-        for topic_name in filters[:-1]:
-            try:
-                if not isinstance(topic[topic_name], dict):
-                    raise KeyError
-                topic = topic[topic_name]
-            except KeyError:
-                topic.update({topic_name: dict()})
-                topic = topic[topic_name]
-        topic.update({filters[-1]: app_msg})
-        self.lock.release()
 
 class Session():
     clients = dict()
-
     def __init__(self, conn, addr, topics):
         self._conn = conn
         self._addr = addr
@@ -74,6 +31,7 @@ class Session():
         # Interval time
         self._interval_time = 0
         self._next_packet_time = 0
+
 
     def clean_session_handler(self, packet):
         self._client_id = packet.client_identifier
@@ -132,47 +90,26 @@ class Session():
             buffer = self._conn.recv(1)
             if buffer == b'':
                 continue
-            packet = Packet(buffer, topics)
+            packet = Packet(buffer)
             packet << self._conn
+            print(packet)
             
             if CONNECT == packet._packet_type:
                 self.clean_session_handler(packet)
                 self.keep_alive_handler(packet)
+            elif PUBLISH == packet._packet_type:
+                topics[packet.topic_name] = packet.application_message
             
-            print(packet)
             packet >> self._conn
         else:
             # TODO
             print('disconnect')
 
 
-    def test_session(self, packets, counter):
-        for _ in range(counter):
-            # [MQTT-3.1.2-24]
-            if self._interval_time != 0 and self.remaining_time < 0:
-                print('disconnect')
-                # TODO
-
-            buffer = self._conn.recv(1)
-            packet = Packet(buffer, self._topics)
-                        
-            packet << self._conn
-
-            if CONNECT == packet._packet_type:
-                # [MQTT-3.1.4-3]
-                self.clean_session_handler(packet)
-                self.keep_alive_handler(packet)
-
-            print(packet)
-            packets.append(packet)
-            packet >> self._conn
-
-
 class Server():
     def __init__(self, ip, port='1883'):
         self._ip = ip
         self._port = port
-        self._topics = Topic()
 
         ADDR = usocket.getaddrinfo(self._ip, self._port)[0][-1]
         self._server = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
@@ -181,6 +118,9 @@ class Server():
 
         print('[SERVER]', self._ip, str(self._port))
         print('Listenning ... ')
+
+        self._topics = Topic()
+
 
 
     def loop_start(self, loop_counter):
