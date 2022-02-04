@@ -1,5 +1,6 @@
 from server.format import *
 import re
+import _thread
 
 
 # MQTT version
@@ -29,13 +30,17 @@ QOS_1 = '01'
 QOS_2 = '10'
 
 
-# Reason Code
+# Return Code
 CONNECTION_ACCEPTED = b'\x00'
-UNACCEPTABLE_PROTOCOL_VERSION = b'\x01'
-IDENTIFIER_REJECTED = b'\x02'
-SERVER_UNAVAILABLE = b'\x03'
-BAD_USERNAME_PASSWORD = b'\x04'
-NOT_AUTHORIZED = b'\x05'
+MAXIMUM_QOS0 = b'\x00'
+MAXIMUM_QOS1 = b'\x01'
+MAXIMUM_QOS2 = b'\x02'
+FAILURE = b'\x80'
+QOS_CODE = {
+    QOS_0: MAXIMUM_QOS0,
+    QOS_1: MAXIMUM_QOS1,
+    QOS_2: MAXIMUM_QOS2,
+}
 
 
 # Packet type translator
@@ -56,7 +61,7 @@ PACKET_NAME = {
 
 
 class Packet():
-    def __init__(self, buffer):
+    def __init__(self, buffer, max_qos=QOS_2):
         # Fixed Header
         self._packet_type = buffer[0] >> 4
         self._flag_bits = buffer[0] & 15
@@ -74,8 +79,23 @@ class Packet():
         self._payload = dict()
         self._property = dict()
 
+        # Propeties
+        self._max_qos = max_qos
+        self._topics = None
+
+
+    @property
+    def topics(self):
+        return self._topics
+
+    
+    @topics.setter
+    def topics(self, topics):
+        self._topics = topics
+
+
     def __str__(self):
-        out = '\n-----[{0}]'.format(PACKET_NAME[self._packet_type])
+        out = '\n----------\n[{0}]'.format(PACKET_NAME[self._packet_type])
         out += '\n[Fixed Header]'
         out += '\n\tpacket type: {0} \tflags: {1:04b}'.format(
                 self._packet_type , self._flag_bits)
@@ -84,7 +104,7 @@ class Packet():
             out += '\n\t{0}: \t{1}'.format(key.replace('_', ' '), val)    
         out += '\n[Payload]'
         for key, val in self._payload.items():
-            out += '\n\t{0}: \t{1}'.format(key.replace('_', ' '), val)    
+            out += '\n\t{0}: \t{1}'.format(str(key, 'utf-8').replace('_', ' '), str(val, 'utf-8'))
         return out
 
 
@@ -112,7 +132,7 @@ class Packet():
             'Packet does not have "{0}" attribute'.format(attr))
 
 
-    # Variable header and Payload Handler Identifier
+    # Variable header and Payload Processing
     def __lshift__(self, conn):
         self._remain_length = variable_length_decode(conn)
         request_handler = getattr(self, 
@@ -191,24 +211,19 @@ class Packet():
 
 
     def subscribe_request(self, buffer):
-        identifier, buffer = buffer[0:2], buffer[2:]
-        self._variable_header.update({'packet_identifier': identifier})
+        # Variable Header
+        packet_identifier, buffer = buffer[0:2], buffer[2:]
+        self._variable_header.update({'packet_identifier': packet_identifier})
 
-        property_length, buffer = variable_byte_integer(buffer)
-        self._variable_header.update({'property_length': property_length})
-        if property_length != 0:
-            pass
-        assert len(buffer) != 0, 'Protocol Error'
+        # Payload
+        while buffer:
+            topic_filter, buffer = utf8_encoded_string(buffer)
+            requested_qos, buffer = '{0:08b}'.format(buffer[0]), buffer[1:]
+            self._payload[topic_filter] = requested_qos[6:]
 
-        while len(buffer) != 0:
-            topic_length, buffer = int.from_bytes(buffer[0:2], 'big'), buffer[2:] 
-            topic_filter, topic_option, buffer = buffer[0:topic_length], buffer[topic_length], buffer[topic_length+1:] 
-            try:
-                self._payload['topic_filters'].append(topic_filter)
-                self._payload['topic_options'].append(topic_option)
-            except KeyError:
-                self._payload.update({'topic_filters':[topic_filter]})
-                self._payload.update({'topic_options':[topic_option]})
+    
+    def pingreq_request(self, buffer):
+        pass
 
 
     def disconnect_request(self, buffer):
@@ -250,7 +265,7 @@ class Packet():
         self._payload.update({'': None})
 
 
-    # Response
+    # Actions
     def __rshift__(self, conn):
         if CONNECT == self._packet_type:
             conn.write(self.connack)
@@ -262,6 +277,8 @@ class Packet():
             conn.write(self.pubcomp)
         elif SUBSCRIBE == self._packet_type:
             conn.write(self.publish + self.subpack)
+        elif PINGREQ == self._packet_type:
+            conn.write(self.pingresp)
 
     
     @property
@@ -315,40 +332,64 @@ class Packet():
         return fixed_header + remain_length + packet_identifier
 
 
-
     @property
     def subpack(self):
+        # Fixed Header
         fixed_header = (SUBPACK << 4 | RESERVED).to_bytes(1, 'big')
+        remain_length = 2
 
-        identifier = self.packet_identifier
+        # Variable Header
+        packet_identifier = self.packet_identifier
 
-        reason_code = b''
-        for _ in range(len(self.topic_filters)):
-            reason_code += 0
+        # Payload
+        return_code = b''
+        for topic_name, qos_level in self._payload.items():
+            return_code += QOS_CODE[self.send_qos_level(topic_name, qos_level)]
 
-        buffer = identifier
-        buffer += reason_code
-        
-        remain_length = variable_byte_integer(len(buffer))
-        return fixed_header + remain_length + buffer
+        remain_length = variable_length_encode(len(return_code)).to_bytes(1, 'big')
+        return fixed_header + remain_length + packet_identifier + return_code
 
     
     @property 
     def publish(self):
-        fixed_header = (PUBLISH << 4 | RESERVED).to_bytes(1, 'big')
-        
-        buffer = b''
-        for i, topic_filter in enumerate(self.pl_topic_filters):
-            topic_name = topic_filter
-            property_length = 0
-            payload = self._topic_storage[topic_filter]
-            remain_length = 2 + len(topic_name) + 1 + property_length + len(payload)
+        packets = b''
+        for topic_name, qos_level in self._payload.items():
+            buffer = b''
+            # Fixed Header
+            fixed_header = (PUBLISH << 4 | RESERVED)
+            send_qos_level = self.send_qos_level(topic_name, qos_level)
+            if send_qos_level == QOS_0:
+                fixed_header &= 0x08
+            elif send_qos_level == QOS_1:
+                fixed_header |= 0x02
+            elif send_qos_level == QOS_2:
+                fixed_header |= 0x04
+            fixed_header = fixed_header.to_bytes(1, 'big')
+            
+            # Variable Header
+            variable_header = len(topic_name).to_bytes(2, 'big') + topic_name
+            # TODO packet identifier
 
-            buffer += fixed_header 
-            buffer += remain_length.to_bytes(1, 'big')
-            buffer += b'\x00' + len(topic_name).to_bytes(1, 'big')
-            buffer += topic_name
-            buffer += variable_byte_integer(property_length)
-            buffer += payload
+            # Payload
+            app_msg = self.topics[topic_name].application_message
+            payload = len(app_msg).to_bytes(2, 'big') + app_msg
+
+            packets += fixed_header + variable_header + payload
         
-        return buffer
+        return packets
+
+ 
+    def send_qos_level(self, topic_name, qos_level):
+        min_qos_level = (self._max_qos 
+            if self._max_qos < self.topics[topic_name].qos_level 
+            else self.topics[topic_name].qos_level)
+        return qos_level if qos_level <= min_qos_level else min_qos_level
+
+
+    @property
+    def pingresp(self):
+        # Fixed Header
+        fixed_header = (PINGRESP << 4 | RESERVED).to_bytes(1, 'big')
+        remain_length = variable_length_encode(0).to_bytes(1, 'big')
+
+        return fixed_header + remain_length

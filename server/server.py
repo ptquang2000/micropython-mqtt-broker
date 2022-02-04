@@ -81,10 +81,10 @@ class Session():
 
 
     def session_start(self):
-        _thread.start_new_thread(self.worker, (self._topics,))
+        _thread.start_new_thread(self.worker, ())
 
 
-    def worker(self, topics):
+    def worker(self):
         # [MQTT-3.1.2-24]
         while self._interval_time == 0 or self.remaining_time > 0:
             buffer = self._conn.recv(1)
@@ -98,7 +98,10 @@ class Session():
                 self.clean_session_handler(packet)
                 self.keep_alive_handler(packet)
             elif PUBLISH == packet._packet_type:
-                topics[packet.topic_name] = packet.application_message
+                self._topics[packet.topic_name] = packet
+            elif SUBSCRIBE == packet._packet_type:
+                print(self._topics)
+                packet.topics = self._topics
             
             packet >> self._conn
         else:
