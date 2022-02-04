@@ -82,6 +82,7 @@ class Packet():
         # Propeties
         self._max_qos = max_qos
         self._topics = None
+        self._client_identifier = None
 
 
     @property
@@ -92,6 +93,16 @@ class Packet():
     @topics.setter
     def topics(self, topics):
         self._topics = topics
+
+
+    @property
+    def client_identifier(self):
+        return self._client_identifier
+
+    
+    @client_identifier.setter
+    def client_identifier(self, client_identifier):
+        self._client_identifier = client_identifier
 
 
     def __str__(self):
@@ -227,43 +238,7 @@ class Packet():
 
 
     def disconnect_request(self, buffer):
-        if len(buffer) < 1:
-            rc = CONNECTION_ACCEPTED
-            self._variable_header.update({'reason_code': rc})
-        elif len(buffer) < 2:
-            rc = buffer[1]
-            self._variable_header.update({'reason_code': rc})
-        else:
-            properties, buffer = buffer[1], buffer[2:]
-            i = 0
-            try:
-                if properties[i] == SESSION_EXPIRY_INTERVAL:
-                    i += 1
-                    self._session_expiry_interval = properties[i:i+4]
-                    i += 4
-                    if self._session_expiry_interval.from_bytes('big') == 0:
-                        pass
-                    if properties[i] == REASON_STRING:
-                        i += 1
-                    if properties[i] == REASON_STRING:
-                        pass
-                    if properties[i] == USER_PROPERTY:
-                        i += 1
-                        remain = properties[i:]
-                        while remain[0] != SERVER_REFERENCE:
-                            name, remain = utf8_encoded_string(remain)
-                            i += 2 + len(name)
-                            value, remain = utf8_encoded_string(remain)
-                            i += 2 + len(value)
-
-                    if properties[i] == SERVER_REFERENCE:
-                        i += 1
-                    if properties[i] == SERVER_REFERENCE:
-                        pass
-            except IndexError:
-                pass
-        self._payload.update({'': None})
-
+        pass
 
     # Actions
     def __rshift__(self, conn):
@@ -276,14 +251,14 @@ class Packet():
         elif PUBREL == self._packet_type:
             conn.write(self.pubcomp)
         elif SUBSCRIBE == self._packet_type:
-            conn.write(self.publish + self.subpack)
+            conn.write(self.publish)
         elif PINGREQ == self._packet_type:
             conn.write(self.pingresp)
 
     
     @property
     def connack(self):
-        # fixed header
+        # Fixed header
         fixed_header = (CONNACK << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
         acknowledge_flags = RESERVED
@@ -337,10 +312,8 @@ class Packet():
         # Fixed Header
         fixed_header = (SUBPACK << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = 2
-
         # Variable Header
         packet_identifier = self.packet_identifier
-
         # Payload
         return_code = b''
         for topic_name, qos_level in self._payload.items():
@@ -354,16 +327,20 @@ class Packet():
     def publish(self):
         packets = b''
         for topic_name, qos_level in self._payload.items():
-            buffer = b''
+            topic = self.topics[topic_name]
             # Fixed Header
             fixed_header = (PUBLISH << 4 | RESERVED)
             send_qos_level = self.send_qos_level(topic_name, qos_level)
             if send_qos_level == QOS_0:
-                fixed_header &= 0x08
+                fixed_header &= 0xf7
             elif send_qos_level == QOS_1:
                 fixed_header |= 0x02
             elif send_qos_level == QOS_2:
                 fixed_header |= 0x04
+
+            if self._client_identifier not in topic.subscription:
+                fixed_header |= 0x01
+                topic.subscription = self._client_identifier
             fixed_header = fixed_header.to_bytes(1, 'big')
             
             # Variable Header
@@ -371,10 +348,12 @@ class Packet():
             # TODO packet identifier
 
             # Payload
-            app_msg = self.topics[topic_name].application_message
-            payload = len(app_msg).to_bytes(2, 'big') + app_msg
+            payload = self.topics[topic_name].application_message
 
-            packets += fixed_header + variable_header + payload
+            remain_length = variable_length_encode(
+                len(variable_header + payload)).to_bytes(1, 'big')
+
+            packets += fixed_header + remain_length + variable_header + payload
         
         return packets
 
@@ -391,5 +370,12 @@ class Packet():
         # Fixed Header
         fixed_header = (PINGRESP << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(0).to_bytes(1, 'big')
+        return fixed_header + remain_length
 
+    
+    @property
+    def disconnect(self):
+        # Fixed Header
+        fixed_header = (DISCONNECT << 4 | RESERVED).to_bytes(1, 'big')
+        remain_length = variable_length_encode(0).to_bytes(1, 'big')
         return fixed_header + remain_length

@@ -3,6 +3,7 @@ class Topic():
         self._name = None
         self._app_msg = None
         self._qos_level = '00'
+        self._subscription = []
         self._parent = parent
         self._children = children
 
@@ -15,6 +16,16 @@ class Topic():
     @property
     def application_message(self):
         return self._app_msg
+
+
+    @property
+    def subscription(self):
+        return self._subscription
+        
+    
+    @subscription.setter
+    def subscription(self, id):
+        return self._subscription.append(id)
         
 
     def __getitem__(self, topic_filter):

@@ -100,13 +100,13 @@ class Session():
             elif PUBLISH == packet._packet_type:
                 self._topics[packet.topic_name] = packet
             elif SUBSCRIBE == packet._packet_type:
-                print(self._topics)
                 packet.topics = self._topics
+                packet.client_identifier = self._client_id
             
             packet >> self._conn
         else:
             # TODO
-            print('disconnect')
+            print('Disconnect From' + str(self._client_id, 'utf-8'))
 
 
 class Server():
@@ -120,27 +120,16 @@ class Server():
         self._server.bind(ADDR)
 
         print('[SERVER]', self._ip, str(self._port))
-        print('Listenning ... ')
 
         self._topics = Topic()
 
 
-
-    def loop_start(self, loop_counter):
-        packets = list()
-        self._server.settimeout(24*60*60.0)
-        self._server.listen(1)
-        conn, addr = self._server.accept()
-        session = Session(conn, addr, self._topics)
-        session.test_session(packets, loop_counter)
-        return packets
-
-
     def loop_forever(self):
         self._server.settimeout(24*60*60.0)
-        self._server.listen(1)
+        self._server.listen(2)
 
         while True:
+            print('Listenning ... ')
             conn, addr = self._server.accept()
             session = Session(conn, addr, self._topics)
             session.session_start()

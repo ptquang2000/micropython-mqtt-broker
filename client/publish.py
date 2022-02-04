@@ -18,7 +18,7 @@ def publish():
         (rc, mid) = client.publish(
             'encyclopedia/temperature', 
             str(temperature), 
-            qos=2)
+            qos=0)
         time.sleep(10)
 
 def on_log(client, userdata, level, buf):

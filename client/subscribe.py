@@ -10,8 +10,8 @@ def subscribe():
     client.on_log = on_log
     client.on_subscribe = on_subscribe
     client.on_message = on_message
-    client.connect(broker, port)
 
+    client.connect(broker, port)
     client.subscribe('encyclopedia/temperature', qos=0)
     client.loop_forever()
 
@@ -19,8 +19,10 @@ def subscribe():
 def on_subscribe(client, userdata, mid, granted_qos):
     print("Subscribed: "+str(mid)+" "+str(granted_qos))
 
+
 def on_message(client, userdata, msg):
-    print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))  
+    print(msg.topic+" "+str(msg.qos)+" "+str(msg.payload))
+
 
 def on_log(client, userdata, level, buf):
     print('log:', buf)
