@@ -11,7 +11,10 @@ RESERVED = 0
 CONNECT = 1
 CONNACK = 2 
 PUBLISH = 3
+PUBACK = 4
+PUBREC = 5
 PUBREL = 6
+PUBCOMP = 7
 SUBSCRIBE = 8
 SUBPACK = 9
 UNSUBSCRIBE = 10
@@ -21,9 +24,9 @@ DISCONNECT = 14
 
 
 # QoS Value
-QOS_0 = '00' 
-QOS_1 = '01' 
-QOS_2 = '02' 
+QOS_0 = '00'
+QOS_1 = '01'
+QOS_2 = '10'
 
 
 # Reason Code
@@ -41,6 +44,9 @@ PACKET_NAME = {
     CONNECT: 'CONNECT',
     CONNACK: 'CONNACK',
     PUBLISH: 'PUBLISH',
+    PUBACK: 'PUBACK',
+    PUBREC: 'PUBREC',
+    PUBREL: 'PUBREL',
     SUBSCRIBE: 'SUBSCRIBE',
     SUBPACK: 'SUBPACK',
     PINGREQ: 'PINGREQ',
@@ -177,6 +183,12 @@ class Packet():
         # Payload
         self._payload.update({'application_message': buffer})
 
+    
+    def pubrel_request(self, buffer):
+        # Variable Header
+        packet_identifier, buffer = buffer[0:2], buffer[2:]
+        self._variable_header.update({'packet_identifier': packet_identifier})
+
 
     def subscribe_request(self, buffer):
         identifier, buffer = buffer[0:2], buffer[2:]
@@ -242,6 +254,12 @@ class Packet():
     def __rshift__(self, conn):
         if CONNECT == self._packet_type:
             conn.write(self.connack)
+        elif PUBLISH == self._packet_type and self.qos_level == QOS_1:
+            conn.write(self.puback)
+        elif PUBLISH == self._packet_type and self.qos_level == QOS_2:
+            conn.write(self.pubrec)
+        elif PUBREL == self._packet_type:
+            conn.write(self.pubcomp)
         elif SUBSCRIBE == self._packet_type:
             conn.write(self.publish + self.subpack)
 
@@ -271,18 +289,44 @@ class Packet():
 
 
     @property
+    def puback(self):
+        # Fixed Header
+        fixed_header = (PUBACK << 4 | RESERVED).to_bytes(1, 'big')
+        remain_length = variable_length_encode(2).to_bytes(1, 'big')
+        packet_identifier = self.packet_identifier
+        return fixed_header + remain_length + packet_identifier
+
+
+    @property
+    def pubrec(self):
+        # Fixed Header
+        fixed_header = (PUBREC << 4 | RESERVED).to_bytes(1, 'big')
+        remain_length = variable_length_encode(2).to_bytes(1, 'big')
+        packet_identifier = self.packet_identifier
+        return fixed_header + remain_length + packet_identifier
+
+
+    @property
+    def pubcomp(self):
+        # Fixed Header
+        fixed_header = (PUBCOMP << 4 | RESERVED).to_bytes(1, 'big')
+        remain_length = variable_length_encode(2).to_bytes(1, 'big')
+        packet_identifier = self.packet_identifier
+        return fixed_header + remain_length + packet_identifier
+
+
+
+    @property
     def subpack(self):
         fixed_header = (SUBPACK << 4 | RESERVED).to_bytes(1, 'big')
 
         identifier = self.packet_identifier
 
-        property_length = variable_byte_integer(0)
         reason_code = b''
-        for _ in range(len(self.pl_topic_filters)):
+        for _ in range(len(self.topic_filters)):
             reason_code += 0
 
         buffer = identifier
-        buffer += property_length
         buffer += reason_code
         
         remain_length = variable_byte_integer(len(buffer))

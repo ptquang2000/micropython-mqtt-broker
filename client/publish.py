@@ -15,8 +15,11 @@ def publish():
     temperature = 0
     while True:
         temperature += 10
-        (rc, mid) = client.publish('encyclopedia/temperature', str(temperature), qos=0)
-        time.sleep(5)
+        (rc, mid) = client.publish(
+            'encyclopedia/temperature', 
+            str(temperature), 
+            qos=2)
+        time.sleep(10)
 
 def on_log(client, userdata, level, buf):
     print('log:', buf)
