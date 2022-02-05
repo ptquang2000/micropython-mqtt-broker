@@ -1,6 +1,6 @@
 from server.format import *
+from server.topic import Topic
 import re
-import _thread
 
 
 # MQTT version
@@ -17,7 +17,7 @@ PUBREC = 5
 PUBREL = 6
 PUBCOMP = 7
 SUBSCRIBE = 8
-SUBPACK = 9
+SUBACK = 9
 UNSUBSCRIBE = 10
 PINGREQ = 12
 PINGRESP = 13
@@ -53,7 +53,7 @@ PACKET_NAME = {
     PUBREC: 'PUBREC',
     PUBREL: 'PUBREL',
     SUBSCRIBE: 'SUBSCRIBE',
-    SUBPACK: 'SUBPACK',
+    SUBACK: 'SUBACK',
     PINGREQ: 'PINGREQ',
     PINGRESP: 'PINGRESP',
     DISCONNECT: 'DISCONNECT',
@@ -63,7 +63,7 @@ PACKET_NAME = {
 class Packet():
     _packet_identifier = 0
 
-    def __init__(self, buffer=b'\x00', max_qos=QOS_2):
+    def __init__(self, buffer=b'\x00'):
         # Fixed Header
         self._packet_type = buffer[0] >> 4
         self._flag_bits = buffer[0] & 15
@@ -79,9 +79,6 @@ class Packet():
         self._remain_length = 0
         self._variable_header = dict()
         self._payload = dict()
-
-        # Propeties
-        self._max_qos = max_qos
 
 
     @property
@@ -160,25 +157,6 @@ class Packet():
             'Packet does not have "{0}" attribute'.format(attr))
 
 
-    # Variable header and Payload Processing
-    def __lshift__(self, client):
-        self._remain_length = variable_length_decode(client.conn)
-        request_handler = getattr(self, 
-            PACKET_NAME[self._packet_type].lower()+'_request')
-        request_handler(client.conn.recv(self._remain_length))
-
-        # Post Processing 
-        if CONNECT == self._packet_type:
-            client.clean_session_handler(self)
-            client.keep_alive_handler(self)
-        elif PUBLISH == self._packet_type:
-            client.topics[self.topic_name] = self
-        elif SUBSCRIBE == self._packet_type:
-            for topic_filter in self._payload:
-                topic = client.topics[topic_filter]
-                topic.add(client)
-
-
     def connect_request(self, buffer):
         # Variable header
         protocol_name, buffer = utf8_encoded_string(buffer)
@@ -242,8 +220,26 @@ class Packet():
         # Payload
         self._payload.update({'application_message': buffer})
 
+
+    def puback_request(self, buffer):
+        # Variable Header
+        packet_identifier, buffer = buffer[0:2], buffer[2:]
+        self._variable_header.update({'packet_identifier': packet_identifier})
+
     
     def pubrel_request(self, buffer):
+        # Variable Header
+        packet_identifier, buffer = buffer[0:2], buffer[2:]
+        self._variable_header.update({'packet_identifier': packet_identifier})
+
+
+    def pubrec_request(self, buffer):
+        # Variable Header
+        packet_identifier, buffer = buffer[0:2], buffer[2:]
+        self._variable_header.update({'packet_identifier': packet_identifier})
+
+
+    def pubcomp_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
         self._variable_header.update({'packet_identifier': packet_identifier})
@@ -268,22 +264,7 @@ class Packet():
     def disconnect_request(self, buffer):
         pass
 
-    # Actions
-    def __rshift__(self, client):
-        if CONNECT == self._packet_type:
-            client.conn.write(self.connack)
-        elif PUBLISH == self._packet_type and self.qos_level == QOS_1:
-            client.conn.write(self.puback)
-        elif PUBLISH == self._packet_type and self.qos_level == QOS_2:
-            client.conn.write(self.pubrec)
-        elif PUBREL == self._packet_type:
-            client.conn.write(self.pubcomp)
-        elif SUBSCRIBE == self._packet_type:
-            client.conn.write(self.subpack)
-        elif PINGREQ == self._packet_type:
-            client.conn.write(self.pingresp)
 
-    
     @property
     def connack(self):
         # Fixed header
@@ -336,18 +317,16 @@ class Packet():
 
 
     @property
-    def subpack(self):
+    def suback(self):
         # Fixed Header
-        fixed_header = (SUBPACK << 4 | RESERVED).to_bytes(1, 'big')
-        remain_length = 2
+        fixed_header = (SUBACK << 4 | RESERVED).to_bytes(1, 'big')
         # Variable Header
         packet_identifier = self.packet_identifier
         # Payload
         return_code = b''
         for topic_name, qos_level in self._payload.items():
-            return_code += QOS_CODE[self.send_qos_level(topic_name, qos_level)]
-
-        remain_length = variable_length_encode(len(return_code)).to_bytes(1, 'big')
+            return_code += QOS_CODE[min(qos_level, Topic._max_qos)]
+        remain_length = variable_length_encode(2 + len(return_code)).to_bytes(1, 'big')
         return fixed_header + remain_length + packet_identifier + return_code
 
     
@@ -355,14 +334,10 @@ class Packet():
     def publish(self):
         # Fixed Header
         fixed_header = (PUBLISH << 4 | RESERVED)
-        send_qos_level = min(self._max_qos, self.qos_level)
+        send_qos_level = min(Topic._max_qos, self.qos_level)
         #  [MQTT-3.3.1-2]
         if send_qos_level == QOS_0:
             fixed_header &= 0xf7
-        elif send_qos_level == QOS_1:
-            fixed_header |= 0x02
-        elif send_qos_level == QOS_2:
-            fixed_header |= 0x04
         fixed_header = fixed_header.to_bytes(1, 'big')
         
         # Variable Header
@@ -393,3 +368,4 @@ class Packet():
         fixed_header = (DISCONNECT << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(0).to_bytes(1, 'big')
         return fixed_header + remain_length
+        

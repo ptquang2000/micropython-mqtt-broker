@@ -6,7 +6,7 @@ broker = sys.argv[1]
 port = 1883
 
 def publish():
-    client_id = f'mqttclient'
+    client_id = f'publisher'
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_log = on_log
     client.connect(broker, port)
@@ -19,7 +19,7 @@ def publish():
             'encyclopedia/temperature', 
             str(temperature), 
             qos=0)
-        time.sleep(10)
+        time.sleep(1)
 
 def on_log(client, userdata, level, buf):
     print('log:', buf)

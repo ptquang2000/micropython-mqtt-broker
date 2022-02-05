@@ -5,7 +5,7 @@ broker = sys.argv[1]
 port = 1883
 
 def subscribe():
-    client_id = f'mqttclient0'
+    client_id = f'subscriber'
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_log = on_log
     client.on_subscribe = on_subscribe
