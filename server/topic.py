@@ -55,6 +55,11 @@ class Topic():
                 self.publish_packet(client.identifier, retain_bit=True))
             client._lock.release()
 
+    
+    def pop(self, client):
+        self._subscription.remove(client)
+        self._subscriber_qos.pop(client.identifier)
+
 
     @property
     def topic_filter(self):

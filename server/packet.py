@@ -19,6 +19,7 @@ PUBCOMP = 7
 SUBSCRIBE = 8
 SUBACK = 9
 UNSUBSCRIBE = 10
+UNSUBACK = 11
 PINGREQ = 12
 PINGRESP = 13
 DISCONNECT = 14
@@ -54,6 +55,8 @@ PACKET_NAME = {
     PUBREL: 'PUBREL',
     SUBSCRIBE: 'SUBSCRIBE',
     SUBACK: 'SUBACK',
+    UNSUBSCRIBE: 'UNSUBSCRIBE',
+    UNSUBACK: 'UNSUBACK',
     PINGREQ: 'PINGREQ',
     PINGRESP: 'PINGRESP',
     DISCONNECT: 'DISCONNECT',
@@ -254,7 +257,28 @@ class Packet():
         while buffer:
             topic_filter, buffer = utf8_encoded_string(buffer)
             requested_qos, buffer = '{0:08b}'.format(buffer[0]), buffer[1:]
-            self._payload[topic_filter] = requested_qos[6:]
+            try:
+                self._payload['topic_filters'].update(
+                    {topic_filter:  requested_qos[6:]}
+                )
+            except KeyError:
+                self._payload.update({'topic_filters': 
+                    {topic_filter:  requested_qos[6:]}
+                })
+
+
+    def unsubscribe_request(self, buffer):
+        # Variable Header
+        packet_identifier, buffer = buffer[0:2], buffer[2:]
+        self._variable_header.update({'packet_identifier': packet_identifier})
+
+        # Payload
+        while buffer:
+            topic_filter, buffer = utf8_encoded_string(buffer)
+            try:
+                self._payload['topic_filters'].append(topic_filter)
+            except KeyError:
+                self._payload.update({'topic_filters': [topic_filter]})
 
     
     def pingreq_request(self, buffer):
@@ -353,6 +377,16 @@ class Packet():
 
         return fixed_header + remain_length + variable_header + payload
 
+
+    @property
+    def unsuback(self):
+         # Fixed Header
+        fixed_header = (UNSUBACK << 4 | RESERVED).to_bytes(1, 'big')
+        remain_length = variable_length_encode(2).to_bytes(1, 'big')
+        # Variable Header
+        packet_identifier = self.packet_identifier
+        return fixed_header + remain_length + packet_identifier
+
     
     @property
     def pingresp(self):
@@ -368,4 +402,3 @@ class Packet():
         fixed_header = (DISCONNECT << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(0).to_bytes(1, 'big')
         return fixed_header + remain_length
-        

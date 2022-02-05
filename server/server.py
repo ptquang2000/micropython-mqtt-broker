@@ -108,12 +108,11 @@ class Client():
             buffer = self._conn.recv(1)
             if buffer == b'':
                 continue
-
             packet = Packet(buffer)
-            self << packet
-            print(packet)
 
             self._lock.acquire()
+            self << packet
+            print(packet)
             self >> packet
             self._lock.release()
             self.keep_alive()
@@ -147,9 +146,13 @@ class Client():
             if packet.qos_level != QOS_0:
                 self.store_message(packet)
         elif SUBSCRIBE == packet.packet_type:
-            for topic_filter, qos in packet._payload.items():
+            for topic_filter, qos in packet.topic_filters.items():
                 topic = self.topics[topic_filter]
                 topic.add(self, qos)
+        elif UNSUBSCRIBE == packet.packet_type:
+            for topic_filter in packet.topic_filtes:
+                topic = self.topics[topic_filter]
+                topic.pop(self)
 
 
     # Actions
@@ -173,6 +176,8 @@ class Client():
             self.discard_message()
         elif SUBSCRIBE == packet.packet_type:
             self._conn.write(packet.suback)
+        elif UNSUBSCRIBE == packet.packet_type:
+            self._conn.write(packet.unsuback)
         elif PINGREQ == packet.packet_type:
             self._conn.write(packet.pingresp)
 
