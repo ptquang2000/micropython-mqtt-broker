@@ -68,7 +68,7 @@ class Client():
         self._client_id = packet.client_identifier
         if packet.clean_session == '0':
             # [MQTT-3.1.2-5]
-            if self._client_id not in Client.clients:
+            if self._client_id not in Client.all:
                 Client.all[self._client_id] = self
             else:
                 self = Client.all[self._client_id]
@@ -118,9 +118,17 @@ class Client():
             self._lock.release()
             self.keep_alive()
         else:
-            print(self._interval_time, self.remaining_time)
-            # TODO
             print('Disconnect From' + str(self._client_id, 'utf-8'))
+            self._conn.close()
+            _thread.exit()
+
+    
+    def store_message(self, packet):
+        self._store_message = packet.publish
+
+
+    def discard_message(self):
+        self._store_message = None
 
 
     # Variable header and Payload Processing
@@ -142,14 +150,6 @@ class Client():
             for topic_filter, qos in packet._payload.items():
                 topic = self.topics[topic_filter]
                 topic.add(self, qos)
-
-    
-    def store_message(self, packet):
-        self._store_message = packet.publish
-
-
-    def discard_message(self):
-        self._store_message = None
 
 
     # Actions
@@ -197,6 +197,7 @@ class Server():
 
         while True:
             print('Listenning ... ')
+            print(Client.all)
             conn, addr = self._server.accept()
             client = Client(conn, addr, Server._topics)
             client.session_start()

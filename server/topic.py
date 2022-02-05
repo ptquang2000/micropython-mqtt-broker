@@ -102,11 +102,25 @@ class Topic():
                 self._children[topic_levels[0]][b'/'.join(topic_levels[1:])] = packet
             except KeyError:
                 pass
+
+            #  [MQTT-4.7.1-2]
+            try:
+                self._children[topic_levels[0]][b'#'] = packet
+            except KeyError:
+                pass
+            
+            #  [MQTT-4.7.1-3]
+            try:
+                self._children[b'+'][b'/'.join(topic_levels[1:])] = packet
+            except KeyError:
+                pass
+
         else:
             # [MQTT-3.3.1-5]
             if packet.retain == '1':
                 self._app_msg = packet.application_message
                 self._qos_level = packet.qos_level
+
             for subscriber in self._subscription:
                 subscriber._lock.acquire()
                 if self.retain:
