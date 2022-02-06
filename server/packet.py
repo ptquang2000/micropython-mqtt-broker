@@ -76,9 +76,6 @@ class Packet():
         self._packet_type = buffer[0] >> 4
         self._flag_bits = buffer[0] & 15
 
-        # [MQTT-3.1.0-1] [MQTT-3.1.0-2]
-        # TODO
-
         # Flag bits
         if self._packet_type in (SUBSCRIBE, UNSUBSCRIBE, PUBREL):
             assert self._flag_bits == 2, 'Flags for subscribe packet must be 2'
@@ -137,7 +134,12 @@ class Packet():
             out += '\n\t{0}: \t{1}'.format(key.replace('_', ' '), val)    
         out += '\n[Payload]'
         for key, val in self._payload.items():
-            out += '\n\t{0}: \t{1}'.format(str(key, 'utf-8').replace('_', ' '), str(val, 'utf-8'))
+            if isinstance(val, dict):
+                out += '\n\t{0}:'.format(str(key, 'utf-8').replace('_', ' '))
+                for key0, val0 in val.items():
+                    out += '\n\t\t{0} : {1}'.format(str(key0, 'utf-8'), str(val0, 'utf-8'))
+            else:
+                out += '\n\t{0}: \t{1}'.format(str(key, 'utf-8').replace('_', ' '), str(val, 'utf-8'))
         return out
 
 
@@ -344,7 +346,7 @@ class Packet():
         packet_identifier = self.packet_identifier
         # Payload
         return_code = b''
-        for topic_name, qos_level in self._payload.items():
+        for topic_name, qos_level in self.topic_filters.items():
             return_code += QOS_CODE[min(qos_level, Topic._max_qos)]
         remain_length = variable_length_encode(2 + len(return_code)).to_bytes(1, 'big')
         return fixed_header + remain_length + packet_identifier + return_code

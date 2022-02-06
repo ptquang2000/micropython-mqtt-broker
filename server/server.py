@@ -1,4 +1,3 @@
-import gc
 import socket
 import _thread
 import time
@@ -76,8 +75,7 @@ class Client():
             # [MQTT-3.1.2-6]
             Client.clean_sessions.pop(self._client_id, None)
             if self._client_id in Client.sessions:
-                Client.sessions[self._client_id].disconnect()
-                gc.collect()
+                Client.sessions[self._client_id].disconnect('Duplicate ID')
             Client.sessions[self._client_id] = self
 
     
@@ -113,7 +111,6 @@ class Client():
 
     
     def error_handler(self, e, packet):
-        print(e)
         if e.value == 'MQTT-3.1.2-2':
             packet.variable_header.update({'return_code': UNACCECCEPTABLE_PROTOCOL})
             self._conn.write(packet.connack)
@@ -122,12 +119,13 @@ class Client():
             packet.variable_header.update({'return_code': IDENTIFIER_REJECTED})
             self._conn.write(packet.connack)
 
-        self.disconnect()
+        self.disconnect(e)
         
 
 
-    def disconnect(self):
+    def disconnect(self, cause):
         print(f'\n*** Closing Connection From {self.identifier} ***')
+        print(f'Cause: {cause}')
         print(f'Thread {_thread.get_ident()}')
         print(f'Remain Time: {self.remaining_time}')
         for topic_filter in self._subscriptions:
@@ -135,7 +133,6 @@ class Client():
             topic.pop(self)
         Client.sessions.pop(self._client_id, None)
         self._conn.close()
-        gc.collect()
 
     
     def worker(self):
@@ -146,7 +143,6 @@ class Client():
                 if buffer == b'':
                     continue
                 packet = Packet(buffer)
-
                 try:
                     Client.s_lock.acquire()
                     self << packet
@@ -161,10 +157,10 @@ class Client():
                     Client.s_lock.release()
             except OSError as e:
                 if e.value == 104:
-                    self.disconnect()
+                    self.disconnect(e)
                 break
         else:
-            self.disconnect()
+            self.disconnect('Timeout')
         _thread.exit()
 
     
@@ -181,7 +177,10 @@ class Client():
         packet._remain_length = variable_length_decode(self.conn)
         request_handler = getattr(packet, 
             PACKET_NAME[packet.packet_type].lower()+'_request')
-        request_handler(self.conn.recv(packet._remain_length))
+        if packet._remain_length != 0:
+            request_handler(self.conn.recv(packet._remain_length))
+        else:
+            request_handler(b'')
 
         if CONNECT != packet.packet_type and not self.identifier:
             raise MQTTProtocolError('MQTT-3.1.0-1')
@@ -212,6 +211,7 @@ class Client():
                 self._subscriptions.add(topic_filter)
                 topic = self.topics[topic_filter]
                 topic.add(self, qos)
+                print(topic._children)
         elif UNSUBSCRIBE == packet.packet_type:
             for topic_filter in packet.topic_filtes:
                 self._subscriptions.remove(topic_filter)
@@ -261,6 +261,7 @@ class Server():
         self._server.bind(ADDR)
         print('[SERVER]', self._ip, str(self._port))
         print('Listenning ... ')
+        self.log()
 
 
     def loop_forever(self):
@@ -271,20 +272,23 @@ class Server():
             conn, addr = self._server.accept()
             client = Client(conn, addr, Server._topics)
             client.session_start()
-            self.log()
 
 
-    def log(self):
-        print('\n===== SERVER LOGS =====')
-        print('<-- Topics -->')
-        print(self._topics)
-        print('<-- Clean Session -->')
-        for client in Client.clean_sessions:
-            print(client)
-        print('<-- Session -->')
-        for client in Client.sessions:
-            print(client)
-        print('=======================')
+    def log(self, period=10):
+        def worker():
+            while True:
+                print('\n===== SERVER LOGS =====')
+                print('<-- Topics -->')
+                print(Server._topics)
+                print('<-- Clean Session -->')
+                for client in Client.clean_sessions:
+                    print(client)
+                print('<-- Session -->')
+                for client in Client.sessions:
+                    print(client)
+                print('=======================')
+                time.sleep(period)
+        _thread.start_new_thread(worker, ())
 
 
 if __name__ == '__main__':

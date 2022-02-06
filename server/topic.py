@@ -6,15 +6,15 @@ class Topic():
     _max_qos = '10'
     _lock = _thread.allocate_lock()
 
-    def __init__(self, parent=None, children={}):
-        self._name = None
+    def __init__(self, topic_name=None, parent=None):
+        self._name = topic_name
         self._app_msg = None
         self._qos_level = '00'
         # [MQTT-3.8.4-3]
         self._subscription = set()
         self._subscriber_qos = dict()
         self._parent = parent
-        self._children = children
+        self._children = dict()
 
 
     @property
@@ -62,12 +62,14 @@ class Topic():
 
     @property
     def topic_filter(self):
-        if not self._parent: return b''
+        if self._parent:
+            buffer = self._parent.topic_filter
+            if buffer:
+                buffer += '/'
+            buffer += self._name.decode('utf-8')
+            return buffer
         else:
-            topic_filter = self.topic_filter
-            if topic_filter:
-                return topic_filter + '/' + self._name
-            return topic_filter + self._name
+            return ''
 
 
     def publish_packet(self, identifier, retain_bit=False):
@@ -82,26 +84,24 @@ class Topic():
 
 
     def __getitem__(self, topic_filter):
+        Topic._lock.acquire()
         topic_levels = self.separator(topic_filter)
-        if not self._name and self._parent:
-            self._name = topic_levels[0]
-
         if topic_levels[1:]:
             if topic_levels[0] not in self._children:
-                self._children[topic_levels[0]] = Topic(parent=self)
+                self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
+            Topic._lock.release()
             return self._children[topic_levels[0]][b'/'.join(topic_levels[1:])]
         else:
-            return self
+            self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
+            Topic._lock.release()
+            return self._children[topic_levels[0]]
 
 
     def __setitem__(self, topic_name, packet):
         topic_levels = self.separator(topic_name)
-        if not self._name and self._parent:
-            self._name = topic_levels[0]
-
         if topic_levels[1:]:
             if topic_levels[0] not in self._children and packet.retain == '1':
-                self._children[topic_levels[0]] = Topic(parent=self)
+                self._children[topic_levels[0]][b'/'.join(topic_levels[1:])] = Topic(topic_name=topic_levels[0], parent=self)
             try:
                 self._children[topic_levels[0]][b'/'.join(topic_levels[1:])] = packet
             except KeyError:
@@ -148,9 +148,9 @@ class Topic():
     def __str__(self):
         buffer = ''
         if self._subscription:
-            buffer += f'<-- {self.topic_filter} -->'
+            buffer += f'\n[ {self.topic_filter} ]'
             for subscriber in self._subscription:
-                buffer += f'> {str(subscriber)}'
-        for child in self._children:
-            buffer += str(child)
+                buffer += f'\n\t> {subscriber} : {self._subscriber_qos[subscriber.identifier]}'
+        for _, topic in self._children.items():
+            buffer += str(topic)
         return buffer

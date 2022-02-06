@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  client1:
+    container_name: client1
+    image: client
+    volumes:
+      - ./client1.py:/client/client1.py
+    command: python client1.py 192.168.0.103
+    environment:
+    - PYTHONUNBUFFERED=1
