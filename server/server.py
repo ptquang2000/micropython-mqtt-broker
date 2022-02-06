@@ -10,11 +10,11 @@ class Client():
     clean_sessions = dict()
     sessions = dict()
     s_lock = _thread.allocate_lock()
+    topics = Topic()
 
-    def __init__(self, conn, addr, topics):
+    def __init__(self, conn, addr):
         self._conn = conn
         self._addr = addr
-        self._topics = topics
 
         # Session state
         self._client_id = None
@@ -46,17 +46,13 @@ class Client():
         return self._conn
 
 
-    @property
-    def topics(self):
-        return self._topics
-
-
     def __str__(self):
         return self.identifier
 
     
     def __eq__(self, other):
-        return other._client_id == self._client_id
+        print(other.identifier == self.identifier)
+        return other.identifier == self.identifier
 
 
     def __hash__(self):
@@ -129,7 +125,7 @@ class Client():
         print(f'Thread {_thread.get_ident()}')
         print(f'Remain Time: {self.remaining_time}')
         for topic_filter in self._subscriptions:
-            topic = self.topics[topic_filter]
+            topic = Client.topics[topic_filter]
             topic.pop(self)
         Client.sessions.pop(self._client_id, None)
         self._conn.close()
@@ -203,19 +199,18 @@ class Client():
             self.keep_alive_setup(packet)
 
         elif PUBLISH == packet.packet_type:
-            self.topics[packet.topic_name] = packet
+            Client.topics[packet.topic_name] = packet
             if packet.qos_level != QOS_0:
                 self.store_message(packet)
         elif SUBSCRIBE == packet.packet_type:
             for topic_filter, qos in packet.topic_filters.items():
                 self._subscriptions.add(topic_filter)
-                topic = self.topics[topic_filter]
+                topic = Client.topics[topic_filter]
                 topic.add(self, qos)
-                print(topic._children)
         elif UNSUBSCRIBE == packet.packet_type:
             for topic_filter in packet.topic_filtes:
                 self._subscriptions.remove(topic_filter)
-                topic = self.topics[topic_filter]
+                topic = Client.topics[topic_filter]
                 topic.pop(self)
 
 
@@ -247,10 +242,6 @@ class Client():
 
 
 class Server():
-    _topics = Topic()
-    _clean_sessions = dict()
-    _sessions = dict()
-
     def __init__(self, ip, port='1883'):
         self._ip = ip
         self._port = port
@@ -260,8 +251,7 @@ class Server():
         self._server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._server.bind(ADDR)
         print('[SERVER]', self._ip, str(self._port))
-        print('Listenning ... ')
-        self.log()
+        print('... Listenning ... ')
 
 
     def loop_forever(self):
@@ -270,7 +260,7 @@ class Server():
 
         while True:
             conn, addr = self._server.accept()
-            client = Client(conn, addr, Server._topics)
+            client = Client(conn, addr)
             client.session_start()
 
 
@@ -278,12 +268,12 @@ class Server():
         def worker():
             while True:
                 print('\n===== SERVER LOGS =====')
-                print('<-- Topics -->')
-                print(Server._topics)
-                print('<-- Clean Session -->')
+                print('<------ Topics -->')
+                print(Client.topics)
+                print('<----- Clean Session --->')
                 for client in Client.clean_sessions:
                     print(client)
-                print('<-- Session -->')
+                print('<----- Session --------->')
                 for client in Client.sessions:
                     print(client)
                 print('=======================')
@@ -297,6 +287,7 @@ if __name__ == '__main__':
         ip = sys.argv[1]
         print(f'Test Broker')
         server = Server(ip)
+        server.log()
         server.loop_forever()
         server._server.close()
         print('Server close')
