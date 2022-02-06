@@ -17,7 +17,6 @@ class Topic():
         self._children = children
 
 
-
     @property
     def qos_level(self):
         return self._qos_level
@@ -144,3 +143,14 @@ class Topic():
         if topic[-1] == b'/':
             levels[-1] = b'/' + levels[-1]
         return levels
+
+
+    def __str__(self):
+        buffer = ''
+        if self._subscription:
+            buffer += f'<-- {self.topic_filter} -->'
+            for subscriber in self._subscription:
+                buffer += f'> {str(subscriber)}'
+        for child in self._children:
+            buffer += str(child)
+        return buffer

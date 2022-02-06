@@ -1,6 +1,5 @@
-from server.format import *
+from server.utility import *
 from server.topic import Topic
-import re
 
 
 # MQTT version
@@ -33,6 +32,12 @@ QOS_2 = '10'
 
 # Return Code
 CONNECTION_ACCEPTED = b'\x00'
+UNACCECCEPTABLE_PROTOCOL = b'\x01'
+IDENTIFIER_REJECTED = b'\x02'
+SERVER_UNAVAILABEL = b'\x03'
+BAD_USERNAME_PASSWORD = b'\x04'
+NOT_AUTHORIZED = b'\x05'
+
 MAXIMUM_QOS0 = b'\x00'
 MAXIMUM_QOS1 = b'\x01'
 MAXIMUM_QOS2 = b'\x02'
@@ -123,9 +128,9 @@ class Packet():
 
 
     def __str__(self):
-        out = '\n----------\n[{0}]'.format(PACKET_NAME[self._packet_type])
+        out = '[{0}]'.format(PACKET_NAME[self._packet_type])
         out += '\n[Fixed Header]'
-        out += '\n\tpacket type: {0} \tflags: {1:04b}'.format(
+        out += '\n\tpacket type: {0}\n\tflags: {1:04b}'.format(
                 self._packet_type , self._flag_bits)
         out += '\n[Variable Header]'
         for key, val in self._variable_header.items():
@@ -165,8 +170,8 @@ class Packet():
         protocol_name, buffer = utf8_encoded_string(buffer)
         self._variable_header.update({'protocol_name': protocol_name})
 
-        verion, buffer = buffer[0], buffer[1:]
-        self._variable_header.update({'protocol_version': verion})
+        protocol_level, buffer = buffer[0], buffer[1:]
+        self._variable_header.update({'protocol_level': protocol_level})
 
 
         connect_flag_bits, buffer = '{0:08b}'.format(buffer[0]), buffer[1:]
@@ -188,10 +193,6 @@ class Packet():
         # Payload
         client_identifier, buffer = utf8_encoded_string(buffer)
         self._payload.update({'client_identifier': client_identifier})
-        if (len(client_identifier) > 23 or 
-            not re.match('[0-9a-zA-Z]+$', client_identifier.decode('UTF-8'))):
-            # TODO
-            print('reject')
 
         if self.will_flag == 1:
             #  [MQTT-3.1.2-8] - [MQTT-3.1.2-12]
@@ -295,20 +296,15 @@ class Packet():
         fixed_header = (CONNACK << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
         acknowledge_flags = RESERVED
-        return_code = CONNECTION_ACCEPTED
 
-        # [MQTT-3.2.2-1]
-        if self.clean_session == '1':
-            pass
-        # [MQTT-3.2.2-3]
-        elif self.clean_session == '0':
-            # TODO
-            pass
-        elif  return_code == CONNECTION_ACCEPTED:
-            acknowledge_flags = RESERVED
+        # Varaible Header
+        if self.session_present == '1':
+            acknowledge_flags = acknowledge_flags | 0x0001
+        if self.return_code != CONNECTION_ACCEPTED:
+            acknowledge_flags = acknowledge_flags | 0x0000
 
         buffer = acknowledge_flags.to_bytes(1, 'big')
-        buffer += return_code
+        buffer += self.return_code
 
         return fixed_header + remain_length + buffer
 

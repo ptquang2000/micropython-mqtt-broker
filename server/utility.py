@@ -73,3 +73,7 @@ def variable_length_decode(conn):
     while (do() & 128 != 0):
         pass
     return value
+
+
+class MQTTProtocolError(Exception):
+    pass
