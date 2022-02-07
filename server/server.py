@@ -101,8 +101,9 @@ class Client():
 
 
     def log(self, packet):
-        print(f'\n<---- Client ID:\t{str(self.identifier, "utf-8")} ----->')
-        print(f'<---- Thread number:\t{_thread.get_ident()} ----->')
+        print(f'\n<----- Client ID:\t{str(self.identifier, "utf-8")} \t----->')
+        print(f'<----- Object at:\t{hex(id(self))} \t----->')
+        print(f'<----- Thread number:\t{_thread.get_ident()} \t----->')
         print(packet)
 
     

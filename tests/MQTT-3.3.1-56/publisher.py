@@ -17,19 +17,15 @@ def publish():
     client_id = f'publisher'
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_log = on_log
-    # client.on_publish = on_publish
     client.connect(broker, port)
     msg = 'on'
 
-    client.loop_start()
     (rc, mid) = client.publish(
         'house/garage', 
         msg, 
         qos=0,
         retain=True)
-    sleep(10)
-    client.disconnect()
-    sleep(1)
-    client.loop_stop()
+    client.loop_forever()
+
 
 publish()

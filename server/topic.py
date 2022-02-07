@@ -94,6 +94,9 @@ class Topic():
 
 
     def __getitem__(self, topic_filter):
+        if not isinstance(topic_filter, bytes):
+            raise KeyError
+
         topic_levels = self.separator(topic_filter)
         if topic_levels[1:]:
             if topic_levels[0] not in self._children:
@@ -120,7 +123,8 @@ class Topic():
             except KeyError:
                 pass
             try:
-                self._children[topic_levels[0]][b'#'] = packet
+                if b'#' in self._children[topic_levels[0]]:
+                    self._children[topic_levels[0]][b'#'] = packet
             except KeyError:
                 pass
             try:

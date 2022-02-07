@@ -7,13 +7,13 @@ services:
     volumes:
       - ./subscriber1.py:/client/subscriber.py
     command: python subscriber.py mqtt
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
     environment:
       - PYTHONUNBUFFERED=1
     depends_on:
       - publisher
-    network_mode: "host"
-    extra_hosts:
-      - "mqtt:127.24.0.4"
 
   subscriber2:
     container_name: subscriber2
@@ -33,10 +33,10 @@ services:
     volumes:
       - ./publisher.py:/client/publisher.py
     command: python publisher.py mqtt
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
     environment:
       - PYTHONUNBUFFERED=1
     depends_on:
       - subscriber2
-    network_mode: "host"
-    extra_hosts:
-      - "mqtt:127.24.0.4"

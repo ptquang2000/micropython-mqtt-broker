@@ -58,3 +58,6 @@ UNSUBSCRIBE packets, except that it sends just one UNSUBACK response
 If the RETAIN flag is set to 1, in a PUBLISH Packet sent by a Client to a Server, 
 the Server MUST store the Application Message and its QoS, so that it can be 
 delivered to future subscribers whose subscriptions match its topic name 
+### MQTT-3.3.1-6
+When a new subscription is established, the last retained message, if any, on 
+each matching topic name MUST be sent to the subscriber
