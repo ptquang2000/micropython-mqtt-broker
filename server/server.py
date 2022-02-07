@@ -2,9 +2,9 @@ import socket
 import _thread
 import time
 import re
+import server.topic as tp
 import server.packet as pk
 from server.utility import MQTTProtocolError, variable_length_decode
-import server.topic as tp
 
 
 class Client():
