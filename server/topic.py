@@ -87,7 +87,7 @@ class Topic():
         packet.packet_type = pkg.PUBLISH
         packet.flag_bits = int.from_bytes(
             pkg.QOS_CODE[self._subscriber_qos[identifier]], 'big') << 1
-        packet.flag_bits = packet.flag_bits + 1
+        packet.flag_bits = packet.flag_bits | 1
         packet.variable_header.update({'topic_name': self.topic_filter})
         packet.payload.update({'application_message': self._app_msg})
         return packet.publish
@@ -141,6 +141,7 @@ class Topic():
                         app_msg=packet.application_message,
                         qos=packet.qos_level,
                         parent=self)
+                    self.clean_up()
             else:
                 if packet.retain == '1':
                     topic._app_msg = packet.application_message

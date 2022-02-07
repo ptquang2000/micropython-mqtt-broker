@@ -375,12 +375,12 @@ class Packet():
     @property 
     def publish(self):
         # Fixed Header
-        fixed_header = (PUBLISH << 4 | RESERVED)
+        fixed_header = (PUBLISH << 4 | self._flag_bits)
         send_qos_level = min(tp.Topic._max_qos, self.qos_level)
         #  [MQTT-3.3.1-2]
         if send_qos_level == QOS_0:
             fixed_header &= 0xf7
-        fixed_header |= int.from_bytes(QOS_CODE[send_qos_level], 'big') << 1
+        fixed_header |= (int.from_bytes(QOS_CODE[send_qos_level], 'big') << 1)
         fixed_header = fixed_header.to_bytes(1, 'big')
         
         # Variable Header

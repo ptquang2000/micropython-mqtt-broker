@@ -284,7 +284,7 @@ if __name__ == '__main__':
         ip = sys.argv[1]
         print(f'Test Broker')
         server = Server(ip)
-        server.log()
+        server.log(2)
         server.loop_forever()
         server._server.close()
         print('Server close')

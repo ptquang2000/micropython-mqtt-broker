@@ -9,6 +9,7 @@ port = 1883
 def on_log(client, userdata, level, buf):
     print('log:', buf)
 
+
 def on_publish(client, userdata, mid):
     print("mid: "+str(mid))
 
@@ -18,14 +19,40 @@ def publish():
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_log = on_log
     client.connect(broker, port)
-    msg = 'on'
 
+    client.loop_start()
+    sleep(4)
+    msg = 'temp'
     (rc, mid) = client.publish(
         'house/garage', 
         msg, 
         qos=0,
         retain=True)
-    client.loop_forever()
+    sleep(5)
+    msg = 'on'
+    (rc, mid) = client.publish(
+        'house/garage', 
+        msg, 
+        qos=0,
+        retain=True)
+    sleep(2)
+    msg = 'off'
+    (rc, mid) = client.publish(
+        'house/garage', 
+        msg, 
+        qos=0,
+        retain=True)
+    sleep(1)
+    msg = ''
+    (rc, mid) = client.publish(
+        'house/garage', 
+        msg, 
+        qos=0,
+        retain=True)
+    sleep(1)
+    client.disconnect()
+    sleep(1)
+    client.loop_stop()
 
 
 publish()
