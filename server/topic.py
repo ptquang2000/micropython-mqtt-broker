@@ -1,16 +1,15 @@
-from server.packet import *
-
+import server.packet as pkg
 
 class Topic():
     _max_qos = '10'
 
-    def __init__(self, topic_name=None, parent=None):
+    def __init__(self, topic_name=None, app_msg=None, qos='00', parent=None):
         self._name = topic_name
-        self._app_msg = None
-        self._qos_level = '00'
+        self._app_msg = app_msg
+        self._qos_level = qos
         self._parent = parent
         self._children = dict()
-        self._subscription = dict()
+        self._subscription = set()
         self._subscriber_qos = dict()
 
 
@@ -41,15 +40,14 @@ class Topic():
 
     def add(self, client, qos):
         # [MQTT-3.3.1-8]
-        self._subscription[client.identifier] = client
+        self._subscription.add(client)
         self._subscriber_qos[client.identifier] = min([self._qos_level, Topic._max_qos, qos])
         if self.retain:
-            client.conn.write(
-                self.publish_packet(client.identifier, retain_bit=True))
+            client.conn.write(self.retain_message(client.identifier))
 
     
     def pop(self, client):
-        self._subscription.pop(client.identifier)
+        self._subscription.remove(client.identifier)
         self._subscriber_qos.pop(client.identifier)
 
 
@@ -65,12 +63,11 @@ class Topic():
             return ''
 
 
-    def publish_packet(self, identifier, retain_bit=False):
-        packet = Packet()
-        packet.packet_type = PUBLISH
-        packet.flag_bits = QOS_CODE[self._subscriber_qos[identifier]] << 1
-        if retain_bit:
-            packet.flag_bits |= 1
+    def retain_message(self, identifier):
+        packet = pkg.Packet()
+        packet.packet_type = pkg.PUBLISH
+        packet.flag_bits = int.from_bytes(pkg.QOS_CODE[self._subscriber_qos[identifier]], 'big') << 1
+        packet.flag_bits = packet.flag_bits + 1
         packet.variable_header.update({'topic_name': self.topic_filter})
         packet.payload.update({'application_message': self._app_msg})
         return packet.publish
@@ -88,6 +85,7 @@ class Topic():
             except KeyError:
                 self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
                 return self._children[topic_levels[0]]
+                
 
     def __setitem__(self, topic_name, packet):
         topic_levels = self.separator(topic_name)
@@ -106,18 +104,25 @@ class Topic():
                 self._children[b'+'][b'/'.join(topic_levels[1:])] = packet
             except KeyError:
                 pass
-
         else:
-            # [MQTT-3.3.1-5]
-            if packet.retain == '1':
-                self._app_msg = packet.application_message
-                self._qos_level = packet.qos_level
-
-            for subscriber in self._subscription:
-                if self.retain:
-                    subscriber.conn.write(self.publish_packet(subscriber.identifier))
-                # [MQTT-3.3.1-12]
-                else:
+            try:
+                topic = self._children[topic_levels[0]]
+            except KeyError:
+                if packet.retain == '1':
+                    self._children[topic_levels[0]] = Topic(
+                        topic_name=topic_levels[0], 
+                        app_msg=packet.application_message,
+                        qos=packet.qos_level,
+                        parent=self)
+            else:
+                if packet.retain == '1':
+                    topic._app_msg = packet.application_message
+                    topic._qos_level = packet.qos_level
+                for subscriber in topic._subscription:
+                    qos_level = min(
+                        packet.qos_level, 
+                        topic._subscriber_qos[subscriber.identifier])
+                    packet.flag_bits = int.from_bytes(pkg.QOS_CODE[qos_level], 'big') << 1
                     subscriber.conn.write(packet.publish)
 
 
@@ -135,8 +140,8 @@ class Topic():
         buffer = ''
         if self._subscription:
             buffer += f'\n[ {self.topic_filter} ]'
-            for id, subscriber in self._subscription.items():
-                buffer += f'\n\t> {subscriber} : {self._subscriber_qos[id]}'
+            for subscriber in self._subscription:
+                buffer += f'\n\t> {subscriber} : {self._subscriber_qos[subscriber.identifier]}'
         for _, topic in self._children.items():
             buffer += str(topic)
         return buffer

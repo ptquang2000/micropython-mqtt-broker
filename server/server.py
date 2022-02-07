@@ -2,15 +2,16 @@ import socket
 import _thread
 import time
 import re
-from server.packet import *
-from server.topic import Topic
+import server.packet as pkg
+from server.utility import MQTTProtocolError, variable_length_decode
+import server.topic as tp
 
 
 class Client():
     clean_sessions = dict()
     sessions = dict()
     s_lock = _thread.allocate_lock()
-    topics = Topic()
+    topics = tp.Topic()
 
     def __init__(self, conn, addr):
         self._conn = conn
@@ -108,11 +109,11 @@ class Client():
     
     def error_handler(self, e, packet):
         if e.value == 'MQTT-3.1.2-2':
-            packet.variable_header.update({'return_code': UNACCECCEPTABLE_PROTOCOL})
+            packet.variable_header.update({'return_code': pkg.UNACCECCEPTABLE_PROTOCOL})
             self._conn.write(packet.connack)
 
         elif e.value == 'MQTT-3.1.3-9':
-            packet.variable_header.update({'return_code': IDENTIFIER_REJECTED})
+            packet.variable_header.update({'return_code': pkg.IDENTIFIER_REJECTED})
             self._conn.write(packet.connack)
 
         self.disconnect(e)
@@ -138,7 +139,7 @@ class Client():
                 buffer = self._conn.recv(1)
                 if buffer == b'':
                     continue
-                packet = Packet(buffer)
+                packet = pkg.Packet(buffer)
                 try:
                     Client.s_lock.acquire()
                     self << packet
@@ -172,19 +173,19 @@ class Client():
     def __lshift__(self, packet):
         packet._remain_length = variable_length_decode(self.conn)
         request_handler = getattr(packet, 
-            PACKET_NAME[packet.packet_type].lower()+'_request')
+            pkg.PACKET_NAME[packet.packet_type].lower()+'_request')
         if packet._remain_length != 0:
             request_handler(self.conn.recv(packet._remain_length))
         else:
             request_handler(b'')
 
-        if CONNECT != packet.packet_type and not self.identifier:
+        if pkg.CONNECT != packet.packet_type and not self.identifier:
             raise MQTTProtocolError('MQTT-3.1.0-1')
 
         # Post Processing 
-        if CONNECT == packet.packet_type:
+        if pkg.CONNECT == packet.packet_type:
             packet.variable_header.update({'session_present': '0'})
-            packet.variable_header.update({'return_code': CONNECTION_ACCEPTED})
+            packet.variable_header.update({'return_code': pkg.CONNECTION_ACCEPTED})
             self._client_id = packet.client_identifier
             
             if packet.protocol_level != 4:
@@ -198,16 +199,16 @@ class Client():
             self.clean_session_handler(packet)
             self.keep_alive_setup(packet)
 
-        elif PUBLISH == packet.packet_type:
+        elif pkg.PUBLISH == packet.packet_type:
             Client.topics[packet.topic_name] = packet
-            if packet.qos_level != QOS_0:
+            if packet.qos_level != pkg.QOS_0:
                 self.store_message(packet)
-        elif SUBSCRIBE == packet.packet_type:
+        elif pkg.SUBSCRIBE == packet.packet_type:
             for topic_filter, qos in packet.topic_filters.items():
                 self._subscriptions.add(topic_filter)
                 topic = Client.topics[topic_filter]
                 topic.add(self, qos)
-        elif UNSUBSCRIBE == packet.packet_type:
+        elif pkg.UNSUBSCRIBE == packet.packet_type:
             for topic_filter in packet.topic_filtes:
                 self._subscriptions.remove(topic_filter)
                 topic = Client.topics[topic_filter]
@@ -216,28 +217,28 @@ class Client():
 
     # Actions
     def __rshift__(self, packet):
-        if CONNECT == packet.packet_type:
+        if pkg.CONNECT == packet.packet_type:
             self._conn.write(packet.connack)
-        elif PUBLISH == packet.packet_type and packet.qos_level == QOS_1:
+        elif pkg.PUBLISH == packet.packet_type and packet.qos_level == pkg.QOS_1:
             self._conn.write(packet.puback)
-        elif PUBLISH == packet.packet_type and packet.qos_level == QOS_2:
+        elif pkg.PUBLISH == packet.packet_type and packet.qos_level == pkg.QOS_2:
             self.store_message(packet)
             self._conn.write(packet.pubrec)
-        elif PUBACK == packet.packet_type:
+        elif pkg.PUBACK == packet.packet_type:
             self.discard_message()
-        elif PUBREC == packet.packet_type:
+        elif pkg.PUBREC == packet.packet_type:
             self.store_message = packet
             self._conn.write(packet.pubrel)
-        elif PUBREL == packet.packet_type:
+        elif pkg.PUBREL == packet.packet_type:
             self.discard_message()
             self._conn.write(packet.pubcomp)
-        elif PUBCOMP == packet.packet_type:
+        elif pkg.PUBCOMP == packet.packet_type:
             self.discard_message()
-        elif SUBSCRIBE == packet.packet_type:
+        elif pkg.SUBSCRIBE == packet.packet_type:
             self._conn.write(packet.suback)
-        elif UNSUBSCRIBE == packet.packet_type:
+        elif pkg.UNSUBSCRIBE == packet.packet_type:
             self._conn.write(packet.unsuback)
-        elif PINGREQ == packet.packet_type:
+        elif pkg.PINGREQ == packet.packet_type:
             self._conn.write(packet.pingresp)
 
 
@@ -268,7 +269,7 @@ class Server():
         def worker():
             while True:
                 print('\n===== SERVER LOGS =====')
-                print('<------ Topics -->')
+                print('<------ Topics -->', end='')
                 print(Client.topics)
                 print('<----- Clean Session --->')
                 for client in Client.clean_sessions:

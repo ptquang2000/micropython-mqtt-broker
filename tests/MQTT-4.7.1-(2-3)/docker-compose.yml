@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  subscriber1:
+    container_name: subscriber1
+    image: client
+    volumes:
+      - ./subscriber1.py:/client/subscriber.py
+    command: python subscriber.py 192.168.0.103
+    environment:
+    - PYTHONUNBUFFERED=1
+  subscriber2:
+    container_name: subscriber2
+    image: client
+    volumes:
+      - ./subscriber2.py:/client/subscriber.py
+    command: python subscriber.py 192.168.0.103
+    environment:
+    - PYTHONUNBUFFERED=1
+  subscriber3:
+    container_name: subscriber3
+    image: client
+    volumes:
+      - ./subscriber3.py:/client/subscriber.py
+    command: python subscriber.py 192.168.0.103
+    environment:
+    - PYTHONUNBUFFERED=1
+  publisher:
+    container_name: publisher
+    image: client
+    volumes:
+      - ./publisher.py:/client/publisher.py
+    command: python publisher.py 192.168.0.103
+    environment:
+    - PYTHONUNBUFFERED=1
+    depends_on:
+      - subscriber1
+      - subscriber2
+      - subscriber3

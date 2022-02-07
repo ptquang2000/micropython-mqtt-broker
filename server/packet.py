@@ -1,5 +1,5 @@
-from server.utility import *
-from server.topic import Topic
+from server.utility import variable_length_encode, utf8_encoded_string
+import server.topic as tp
 
 
 # MQTT version
@@ -38,6 +38,7 @@ SERVER_UNAVAILABEL = b'\x03'
 BAD_USERNAME_PASSWORD = b'\x04'
 NOT_AUTHORIZED = b'\x05'
 
+
 MAXIMUM_QOS0 = b'\x00'
 MAXIMUM_QOS1 = b'\x01'
 MAXIMUM_QOS2 = b'\x02'
@@ -58,6 +59,7 @@ PACKET_NAME = {
     PUBACK: 'PUBACK',
     PUBREC: 'PUBREC',
     PUBREL: 'PUBREL',
+    PUBCOMP: 'PUBCOMP',
     SUBSCRIBE: 'SUBSCRIBE',
     SUBACK: 'SUBACK',
     UNSUBSCRIBE: 'UNSUBSCRIBE',
@@ -347,7 +349,7 @@ class Packet():
         # Payload
         return_code = b''
         for topic_name, qos_level in self.topic_filters.items():
-            return_code += QOS_CODE[min(qos_level, Topic._max_qos)]
+            return_code += QOS_CODE[min(qos_level, tp.Topic._max_qos)]
         remain_length = variable_length_encode(2 + len(return_code)).to_bytes(1, 'big')
         return fixed_header + remain_length + packet_identifier + return_code
 
@@ -356,10 +358,11 @@ class Packet():
     def publish(self):
         # Fixed Header
         fixed_header = (PUBLISH << 4 | RESERVED)
-        send_qos_level = min(Topic._max_qos, self.qos_level)
+        send_qos_level = min(tp.Topic._max_qos, self.qos_level)
         #  [MQTT-3.3.1-2]
         if send_qos_level == QOS_0:
             fixed_header &= 0xf7
+        fixed_header |= int.from_bytes(QOS_CODE[send_qos_level], 'big') << 1
         fixed_header = fixed_header.to_bytes(1, 'big')
         
         # Variable Header

@@ -19,21 +19,26 @@ def on_disconnect(client, userdata,  rc):
     print("Disconnected")
 
 
+def on_message(client, userdata, message):
+    print("received message =",str(message.payload.decode("utf-8")))
+
+
 def connect():
-    client_id = f'client2'
+    client_id = f'subscriber1'
     # Set Connecting Client ID
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_log = on_log
-    client.on_connect = on_connect
-    client.on_subscribe = on_subscribe
-    client.on_disconnect = on_disconnect
+    # client.on_connect = on_connect
+    # client.on_subscribe = on_subscribe
+    # client.on_message = on_message
+    # client.on_disconnect = on_disconnect
     client.connect(broker, 1883)
     client.subscribe([
         ('house/room/main-light',0), ('house/room/side-light', 0),
-        # ('house/room1/alarm', 0), ('house/room1/main-light',0), 
-        # ('house/room1/side-light', 0), ('house/room2/main-light', 0), 
-        # ('house/main-door', 0), ('house/garage/main-light',0),
-        # ('house/room2/side-light', 0)
+        ('house/room1/alarm', 0), ('house/room1/main-light',0), 
+        ('house/room1/side-light', 0), ('house/room2/main-light', 0), 
+        ('house/main-door', 0), ('house/garage/main-light',0),
+        ('house/room2/side-light', 0)
     ])
     client.loop_forever()
 
