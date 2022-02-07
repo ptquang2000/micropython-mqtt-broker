@@ -41,10 +41,17 @@ class Topic():
     def add(self, client, qos):
         # [MQTT-3.3.1-8]
         self._subscription.add(client)
-        self._subscriber_qos[client.identifier] = min([self._qos_level, Topic._max_qos, qos])
+        self._subscriber_qos[client.identifier] = min([
+            self._qos_level, Topic._max_qos, qos])
         if self.retain:
             client.conn.write(self.retain_message(client.identifier))
 
+        if self.name == b'#':
+            self._parent._subscription.add(client)
+            self._parent._subscriber_qos[client.identifier] = min(
+                [self._parent._qos_level, Topic._max_qos, qos])
+            if self._parent.retain:
+                client.conn.write(self._parent.retain_message(client.identifier))
     
     def pop(self, client):
         self._subscription.remove(client.identifier)
@@ -66,7 +73,8 @@ class Topic():
     def retain_message(self, identifier):
         packet = pkg.Packet()
         packet.packet_type = pkg.PUBLISH
-        packet.flag_bits = int.from_bytes(pkg.QOS_CODE[self._subscriber_qos[identifier]], 'big') << 1
+        packet.flag_bits = int.from_bytes(
+            pkg.QOS_CODE[self._subscriber_qos[identifier]], 'big') << 1
         packet.flag_bits = packet.flag_bits + 1
         packet.variable_header.update({'topic_name': self.topic_filter})
         packet.payload.update({'application_message': self._app_msg})
@@ -77,13 +85,15 @@ class Topic():
         topic_levels = self.separator(topic_filter)
         if topic_levels[1:]:
             if topic_levels[0] not in self._children:
-                self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
+                self._children[topic_levels[0]] = Topic(
+                    topic_name=topic_levels[0], parent=self)
             return self._children[topic_levels[0]][b'/'.join(topic_levels[1:])]
         else:
             try:
                 return self._children[topic_levels[0]]
             except KeyError:
-                self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
+                self._children[topic_levels[0]] = Topic(
+                    topic_name=topic_levels[0], parent=self)
                 return self._children[topic_levels[0]]
                 
 
@@ -91,7 +101,8 @@ class Topic():
         topic_levels = self.separator(topic_name)
         if topic_levels[1:]:
             if topic_levels[0] not in self._children and packet.retain == '1':
-                self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
+                self._children[topic_levels[0]] = Topic(
+                    topic_name=topic_levels[0], parent=self)
             try:
                 self._children[topic_levels[0]][b'/'.join(topic_levels[1:])] = packet
             except KeyError:
@@ -122,7 +133,8 @@ class Topic():
                     qos_level = min(
                         packet.qos_level, 
                         topic._subscriber_qos[subscriber.identifier])
-                    packet.flag_bits = int.from_bytes(pkg.QOS_CODE[qos_level], 'big') << 1
+                    packet.flag_bits = int.from_bytes(
+                        pkg.QOS_CODE[qos_level], 'big') << 1
                     subscriber.conn.write(packet.publish)
 
 

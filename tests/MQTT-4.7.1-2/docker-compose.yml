@@ -6,7 +6,7 @@ services:
     image: client
     volumes:
       - ./subscriber1.py:/client/subscriber.py
-    command: python subscriber.py 192.168.0.103
+    command: python subscriber.py 192.168.112.1
     environment:
     - PYTHONUNBUFFERED=1
   subscriber2:
@@ -14,15 +14,7 @@ services:
     image: client
     volumes:
       - ./subscriber2.py:/client/subscriber.py
-    command: python subscriber.py 192.168.0.103
-    environment:
-    - PYTHONUNBUFFERED=1
-  subscriber3:
-    container_name: subscriber3
-    image: client
-    volumes:
-      - ./subscriber3.py:/client/subscriber.py
-    command: python subscriber.py 192.168.0.103
+    command: python subscriber.py 192.168.112.1
     environment:
     - PYTHONUNBUFFERED=1
   publisher:
@@ -30,10 +22,9 @@ services:
     image: client
     volumes:
       - ./publisher.py:/client/publisher.py
-    command: python publisher.py 192.168.0.103
+    command: python publisher.py 192.168.112.1
     environment:
     - PYTHONUNBUFFERED=1
     depends_on:
       - subscriber1
       - subscriber2
-      - subscriber3

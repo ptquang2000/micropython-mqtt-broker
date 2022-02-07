@@ -34,11 +34,9 @@ def connect():
     # client.on_disconnect = on_disconnect
     client.connect(broker, 1883)
     client.subscribe([
-        ('house/room/main-light',0), ('house/room/side-light', 0),
-        ('house/room1/alarm', 0), ('house/room1/main-light',0), 
-        ('house/room1/side-light', 0), ('house/room2/main-light', 0), 
-        ('house/main-door', 0), ('house/garage/main-light',0),
-        ('house/room2/side-light', 0)
+        ('house/room1/main-light',0), ('house/room1/side-light', 0),
+        ('house/room2/main-light',0), ('house/room2/side-light', 0),
+        ('house', 0), ('house/garage',0),
     ])
     client.loop_forever()
 
