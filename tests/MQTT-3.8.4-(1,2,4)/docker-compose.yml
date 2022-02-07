@@ -6,7 +6,10 @@ services:
     image: client
     volumes:
       - ./client1.py:/client/client.py
-    command: python client.py 192.168.0.103
+    command: python client.py mqtt
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
     environment:
     - PYTHONUNBUFFERED=1
   client2:
@@ -14,6 +17,9 @@ services:
     image: client
     volumes:
       - ./client2.py:/client/client.py
-    command: python client.py 192.168.0.103
+    command: python client.py mqtt
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
     environment:
     - PYTHONUNBUFFERED=1

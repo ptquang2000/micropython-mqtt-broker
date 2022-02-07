@@ -6,23 +6,32 @@ services:
     image: client
     volumes:
       - ./subscriber1.py:/client/subscriber.py
-    command: python subscriber.py 192.168.112.1
+    command: python subscriber.py mqtt
     environment:
     - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
   subscriber2:
     container_name: subscriber2
     image: client
     volumes:
       - ./subscriber2.py:/client/subscriber.py
-    command: python subscriber.py 192.168.112.1
+    command: python subscriber.py mqtt
     environment:
     - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
   publisher:
     container_name: publisher
     image: client
     volumes:
       - ./publisher.py:/client/publisher.py
-    command: python publisher.py 192.168.112.1
+    command: python publisher.py mqtt
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
     environment:
     - PYTHONUNBUFFERED=1
     depends_on:
