@@ -1,9 +1,9 @@
-import server.packet as pkg
+import server.packet as pk
 
 class Topic():
-    _max_qos = '10'
+    _max_qos = pk.QOS_2
 
-    def __init__(self, topic_name=None, app_msg=None, qos='00', parent=None):
+    def __init__(self, topic_name=None, app_msg=None, qos=pk.QOS_0, parent=None):
         self._name = topic_name
         self._app_msg = app_msg
         self._qos_level = qos
@@ -36,6 +36,17 @@ class Topic():
     @property
     def retain(self):
         return self._app_msg
+
+
+    def retain_message(self, identifier):
+        packet = pk.Packet()
+        packet.packet_type = pk.PUBLISH
+        packet.flag_bits = int.from_bytes(
+            pk.QOS_CODE[self._subscriber_qos[identifier]], 'big') << 1
+        packet.flag_bits = packet.flag_bits | 1
+        packet.variable_header.update({'topic_name': self.topic_filter})
+        packet.payload.update({'application_message': self._app_msg})
+        return packet.publish
 
 
     def add(self, client, qos):
@@ -80,17 +91,6 @@ class Topic():
             return buffer
         else:
             return ''
-
-
-    def retain_message(self, identifier):
-        packet = pkg.Packet()
-        packet.packet_type = pkg.PUBLISH
-        packet.flag_bits = int.from_bytes(
-            pkg.QOS_CODE[self._subscriber_qos[identifier]], 'big') << 1
-        packet.flag_bits = packet.flag_bits | 1
-        packet.variable_header.update({'topic_name': self.topic_filter})
-        packet.payload.update({'application_message': self._app_msg})
-        return packet.publish
 
 
     def __getitem__(self, topic_filter):
@@ -151,7 +151,7 @@ class Topic():
                         packet.qos_level, 
                         topic._subscriber_qos[subscriber.identifier])
                     packet.flag_bits = int.from_bytes(
-                        pkg.QOS_CODE[qos_level], 'big') << 1
+                        pk.QOS_CODE[qos_level], 'big') << 1
                     subscriber.conn.write(packet.publish)
 
 

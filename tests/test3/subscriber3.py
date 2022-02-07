@@ -16,9 +16,9 @@ def connect():
     client.on_log = on_log
     client.connect(broker, 1883)
     client.loop_start()
-    sleep(9)
-    client.subscribe('house/garage',0)
     sleep(8)
+    client.subscribe([('house/garage',0),('house/room',0)])
+    sleep(3)
     client.disconnect()
     sleep(1)
     client.loop_stop()

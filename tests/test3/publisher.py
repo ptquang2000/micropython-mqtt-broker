@@ -21,31 +21,41 @@ def publish():
     client.connect(broker, port)
 
     client.loop_start()
-    sleep(4)
+    sleep(1)
     msg = 'temp'
     (rc, mid) = client.publish(
         'house/garage', 
         msg, 
         qos=0,
         retain=True)
-    sleep(5)
+    sleep(2)
     msg = 'on'
     (rc, mid) = client.publish(
         'house/garage', 
         msg, 
         qos=0,
         retain=True)
-    sleep(2)
+    sleep(3)
     msg = 'off'
     (rc, mid) = client.publish(
         'house/garage', 
         msg, 
         qos=0,
         retain=True)
-    sleep(1)
+    (rc, mid) = client.publish(
+        'house/room', 
+        msg, 
+        qos=0,
+        retain=True)
+    sleep(3)
     msg = ''
     (rc, mid) = client.publish(
         'house/garage', 
+        msg, 
+        qos=0,
+        retain=True)
+    (rc, mid) = client.publish(
+        'house/room', 
         msg, 
         qos=0,
         retain=True)

@@ -261,7 +261,7 @@ class Server():
             client.session_start()
 
 
-    def log(self, period=5):
+    def log(self, period=10):
         def worker():
             while True:
                 print('\n===== SERVER LOGS =====')
@@ -284,7 +284,7 @@ if __name__ == '__main__':
         ip = sys.argv[1]
         print(f'Test Broker')
         server = Server(ip)
-        server.log(2)
+        server.log(1)
         server.loop_forever()
         server._server.close()
         print('Server close')

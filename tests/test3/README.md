@@ -31,3 +31,17 @@ receive a retained message
 ### MQTT-3.3.1-11
 A zero byte retained message MUST NOT be stored as a retained message on the 
 Server
+
+|Time   | Actions
+|:--:   | :--
+|0      | S1,S2,S3,S4,P connect
+|       | S1 subscribe house/garage
+|1      | P publish r1 house/garage 'temp'
+|3      | P publish r1 house/garage 'on'
+|5      | S2 subscribe house/garage
+|6      | P publish house/garage, house/room 'off'
+|8      | S3 subscribe house/garage, house/room
+|9      | P publish house/garage, house/room ''
+|10     | S4 subscribe house/garage, house/room
+|       | S1,S2,P disconnect
+|11     | S3,S4 disconnect
