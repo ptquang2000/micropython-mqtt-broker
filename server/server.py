@@ -51,9 +51,8 @@ class Client():
         return self.identifier
 
     
-    def __eq__(self, other):
-        print(other.identifier == self.identifier)
-        return other.identifier == self.identifier
+    def __eq__(self, id):
+        return id == self.identifier
 
 
     def __hash__(self):
@@ -209,10 +208,16 @@ class Client():
                 topic = Client.topics[topic_filter]
                 topic.add(self, qos)
         elif pkg.UNSUBSCRIBE == packet.packet_type:
-            for topic_filter in packet.topic_filtes:
-                self._subscriptions.remove(topic_filter)
-                topic = Client.topics[topic_filter]
-                topic.pop(self)
+            for topic_filter in packet.topic_filters:
+                try:
+                    self._subscriptions.remove(topic_filter)
+                except KeyError:
+                    pass
+                else:
+                    topic = Client.topics[topic_filter]
+                    topic.pop(self)
+        elif pkg.DISCONNECT == packet.packet_type:
+            raise MQTTProtocolError('Client disconnect')
 
 
     # Actions
@@ -265,7 +270,7 @@ class Server():
             client.session_start()
 
 
-    def log(self, period=10):
+    def log(self, period=5):
         def worker():
             while True:
                 print('\n===== SERVER LOGS =====')

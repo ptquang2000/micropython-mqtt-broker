@@ -4,6 +4,10 @@
 - Be able to work with paho-mqtt. 
 - Be able to run on ESP ? :D ?
 
+## About
+* MQTT version 3.1.1
+* Tested features in [tests directory](tree/master/tests)
+
 ## Test MQTT Broker
 ```bash
 # clone repository

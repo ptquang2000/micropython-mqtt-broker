@@ -32,7 +32,7 @@ class Topic():
     def name(self, value):
         self._name = value
 
-    # [MQTT-3.3.1-10]
+
     @property
     def retain(self):
         return self._app_msg
@@ -53,9 +53,21 @@ class Topic():
             if self._parent.retain:
                 client.conn.write(self._parent.retain_message(client.identifier))
     
+
     def pop(self, client):
+        if  self._parent and self.name == b'#':
+            self._parent._subscription.remove(client.identifier)
+            self._parent._subscriber_qos.pop(client.identifier)
+
         self._subscription.remove(client.identifier)
         self._subscriber_qos.pop(client.identifier)
+        self.clean_up()
+
+    
+    def clean_up(self):
+        if self._parent and not self.retain and not self._subscription and not self._children:
+            self._parent._children.pop(self._name)
+            self._parent.clean_up()
 
 
     @property
@@ -149,11 +161,12 @@ class Topic():
 
 
     def __str__(self):
-        buffer = ''
+        buffer = f'\n[ {self.topic_filter} ]'
         if self._subscription:
-            buffer += f'\n[ {self.topic_filter} ]'
             for subscriber in self._subscription:
                 buffer += f'\n\t> {subscriber} : {self._subscriber_qos[subscriber.identifier]}'
+            if self.retain:
+                buffer += f'\nRetaine msg: {self._app_msg}, QoS: {self._qos_level}'
         for _, topic in self._children.items():
             buffer += str(topic)
         return buffer

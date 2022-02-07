@@ -140,6 +140,10 @@ class Packet():
                 out += '\n\t{0}:'.format(str(key, 'utf-8').replace('_', ' '))
                 for key0, val0 in val.items():
                     out += '\n\t\t{0} : {1}'.format(str(key0, 'utf-8'), str(val0, 'utf-8'))
+            elif isinstance(val, list):
+                out += '\n\t{0}:'.format(str(key, 'utf-8').replace('_', ' '))
+                for e in val:
+                    out += '\n\t\t{0}'.format(str(e, 'utf-8'))
             else:
                 out += '\n\t{0}: \t{1}'.format(str(key, 'utf-8').replace('_', ' '), str(val, 'utf-8'))
         return out
