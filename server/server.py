@@ -2,7 +2,7 @@ import socket
 import _thread
 import time
 import re
-import server.packet as pkg
+import server.packet as pk
 from server.utility import MQTTProtocolError, variable_length_decode
 import server.topic as tp
 
@@ -108,11 +108,11 @@ class Client():
     
     def error_handler(self, e, packet):
         if e.value == 'MQTT-3.1.2-2':
-            packet.variable_header.update({'return_code': pkg.UNACCECCEPTABLE_PROTOCOL})
+            packet.variable_header.update({'return_code': pk.UNACCECCEPTABLE_PROTOCOL})
             self._conn.write(packet.connack)
 
         elif e.value == 'MQTT-3.1.3-9':
-            packet.variable_header.update({'return_code': pkg.IDENTIFIER_REJECTED})
+            packet.variable_header.update({'return_code': pk.IDENTIFIER_REJECTED})
             self._conn.write(packet.connack)
 
         self.disconnect(e)
@@ -138,7 +138,7 @@ class Client():
                 buffer = self._conn.recv(1)
                 if buffer == b'':
                     continue
-                packet = pkg.Packet(buffer)
+                packet = pk.Packet(buffer)
                 try:
                     Client.s_lock.acquire()
                     self << packet
@@ -172,19 +172,19 @@ class Client():
     def __lshift__(self, packet):
         packet._remain_length = variable_length_decode(self.conn)
         request_handler = getattr(packet, 
-            pkg.PACKET_NAME[packet.packet_type].lower()+'_request')
+            pk.PACKET_NAME[packet.packet_type].lower()+'_request')
         if packet._remain_length != 0:
             request_handler(self.conn.recv(packet._remain_length))
         else:
             request_handler(b'')
 
-        if pkg.CONNECT != packet.packet_type and not self.identifier:
+        if pk.CONNECT != packet.packet_type and not self.identifier:
             raise MQTTProtocolError('MQTT-3.1.0-1')
 
         # Post Processing 
-        if pkg.CONNECT == packet.packet_type:
+        if pk.CONNECT == packet.packet_type:
             packet.variable_header.update({'session_present': '0'})
-            packet.variable_header.update({'return_code': pkg.CONNECTION_ACCEPTED})
+            packet.variable_header.update({'return_code': pk.CONNECTION_ACCEPTED})
             self._client_id = packet.client_identifier
             
             if packet.protocol_level != 4:
@@ -198,16 +198,16 @@ class Client():
             self.clean_session_handler(packet)
             self.keep_alive_setup(packet)
 
-        elif pkg.PUBLISH == packet.packet_type:
+        elif pk.PUBLISH == packet.packet_type:
             Client.topics[packet.topic_name] = packet
-            if packet.qos_level != pkg.QOS_0:
+            if packet.qos_level != pk.QOS_0:
                 self.store_message(packet)
-        elif pkg.SUBSCRIBE == packet.packet_type:
+        elif pk.SUBSCRIBE == packet.packet_type:
             for topic_filter, qos in packet.topic_filters.items():
                 self._subscriptions.add(topic_filter)
                 topic = Client.topics[topic_filter]
                 topic.add(self, qos)
-        elif pkg.UNSUBSCRIBE == packet.packet_type:
+        elif pk.UNSUBSCRIBE == packet.packet_type:
             for topic_filter in packet.topic_filters:
                 try:
                     self._subscriptions.remove(topic_filter)
@@ -216,35 +216,25 @@ class Client():
                 else:
                     topic = Client.topics[topic_filter]
                     topic.pop(self)
-        elif pkg.DISCONNECT == packet.packet_type:
+        elif pk.DISCONNECT == packet.packet_type:
             raise MQTTProtocolError('Client disconnect')
 
 
     # Actions
     def __rshift__(self, packet):
-        if pkg.CONNECT == packet.packet_type:
-            self._conn.write(packet.connack)
-        elif pkg.PUBLISH == packet.packet_type and packet.qos_level == pkg.QOS_1:
-            self._conn.write(packet.puback)
-        elif pkg.PUBLISH == packet.packet_type and packet.qos_level == pkg.QOS_2:
-            self.store_message(packet)
-            self._conn.write(packet.pubrec)
-        elif pkg.PUBACK == packet.packet_type:
+        # Pre Processing
+        packet_name = pk.PACKET_NAME[packet.packet_type] + getattr(packet, 'qos_level')
+        if packet_name in ['PUBLISH10', 'PUBREC']:
+            self.store_message()
+        elif packet.packet_type in [pk.PUBACK, pk.PUBREL, pk.PUBCOMP]:
             self.discard_message()
-        elif pkg.PUBREC == packet.packet_type:
-            self.store_message = packet
-            self._conn.write(packet.pubrel)
-        elif pkg.PUBREL == packet.packet_type:
-            self.discard_message()
-            self._conn.write(packet.pubcomp)
-        elif pkg.PUBCOMP == packet.packet_type:
-            self.discard_message()
-        elif pkg.SUBSCRIBE == packet.packet_type:
-            self._conn.write(packet.suback)
-        elif pkg.UNSUBSCRIBE == packet.packet_type:
-            self._conn.write(packet.unsuback)
-        elif pkg.PINGREQ == packet.packet_type:
-            self._conn.write(packet.pingresp)
+
+        try:
+            reponse = getattr(packet, pk.PACKET_RESPONSE[packet_name].lower())
+        except KeyError:
+            pass
+        else:
+            self._conn.write(reponse)
 
 
 class Server():

@@ -69,6 +69,18 @@ PACKET_NAME = {
     DISCONNECT: 'DISCONNECT',
 }
 
+PACKET_RESPONSE = {
+    'CONNECT': 'CONNACK',
+    'PUBLISH01': 'PUBACK',
+    'PUBLISH10': 'PUBREC',
+    'PUBREC': 'PUBREL',
+    'PUBREL': 'PUBCOMP',
+    'SUBSCRIBE': 'SUBACK',
+    'UNSUBSCRIBE': 'UNSUBACK',
+    'PINGREQ': 'PINGRESP',
+}
+
+
 
 class Packet():
     _packet_identifier = 0
@@ -168,6 +180,8 @@ class Packet():
                 return flag_bits[1:3]
             elif attr == 'retain':
                 return flag_bits[3]
+        elif str(attr) == 'qos_level':
+            return ''
 
         raise AttributeError(
             'Packet does not have "{0}" attribute'.format(attr))

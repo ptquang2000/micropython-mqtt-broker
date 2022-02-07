@@ -165,8 +165,8 @@ class Topic():
         if self._subscription:
             for subscriber in self._subscription:
                 buffer += f'\n\t> {subscriber} : {self._subscriber_qos[subscriber.identifier]}'
-            if self.retain:
-                buffer += f'\nRetaine msg: {self._app_msg}, QoS: {self._qos_level}'
+        if self.retain:
+            buffer += f'\n\t> retain msg: {self._app_msg}, QoS: {self._qos_level}'
         for _, topic in self._children.items():
             buffer += str(topic)
         return buffer

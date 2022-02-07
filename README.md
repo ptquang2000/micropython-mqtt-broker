@@ -6,7 +6,7 @@
 
 ## About
 * MQTT version 3.1.1
-* Tested features in [tests directory](tree/master/tests)
+* Tested features in [tests directory](./tree/master/tests)
 
 ## Test MQTT Broker
 ```bash

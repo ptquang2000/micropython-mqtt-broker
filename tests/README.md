@@ -52,3 +52,9 @@ UNSUBACK
 If a Server receives an UNSUBSCRIBE packet that contains multiple Topic Filters 
 it MUST handle that packet as if it had received a sequence of multiple 
 UNSUBSCRIBE packets, except that it sends just one UNSUBACK response
+
+## PUBLISH
+### MQTT-3.3.1-5
+If the RETAIN flag is set to 1, in a PUBLISH Packet sent by a Client to a Server, 
+the Server MUST store the Application Message and its QoS, so that it can be 
+delivered to future subscribers whose subscriptions match its topic name 
