@@ -88,7 +88,7 @@ class Packet():
     def __init__(self, buffer=b'\x00'):
         # Fixed Header
         self._packet_type = buffer[0] >> 4
-        self._flag_bits = buffer[0] & 15
+        self._flag_bits = buffer[0] & 0x0f
 
         # Flag bits
         if self._packet_type in (SUBSCRIBE, UNSUBSCRIBE, PUBREL):
@@ -99,9 +99,8 @@ class Packet():
         self._variable_header = dict()
         self._payload = dict()
 
-
-    @property
-    def packet_id(self):
+    
+    def new_packet_id(self):
         Packet._packet_identifier += 1
         return (Packet._packet_identifier
             if Packet._packet_identifier < 16 ** 2
@@ -366,7 +365,7 @@ class Packet():
         packet_identifier = self.packet_identifier
         # Payload
         return_code = b''
-        for topic_name, qos_level in self.topic_filters.items():
+        for _, qos_level in self.topic_filters.items():
             return_code += QOS_CODE[min(qos_level, tp.Topic._max_qos)]
         remain_length = variable_length_encode(2 + len(return_code)).to_bytes(1, 'big')
         return fixed_header + remain_length + packet_identifier + return_code
@@ -376,24 +375,18 @@ class Packet():
     def publish(self):
         # Fixed Header
         fixed_header = (PUBLISH << 4 | self._flag_bits)
-        send_qos_level = min(tp.Topic._max_qos, self.qos_level)
-        #  [MQTT-3.3.1-2]
-        if send_qos_level == QOS_0:
+        if self.qos_level == QOS_0:
             fixed_header &= 0xf7
-        fixed_header |= (int.from_bytes(QOS_CODE[send_qos_level], 'big') << 1)
         fixed_header = fixed_header.to_bytes(1, 'big')
-        
         # Variable Header
         variable_header = len(self.topic_name).to_bytes(2, 'big') + self.topic_name
-        if send_qos_level != QOS_0:
-            variable_header += Packet.packet_id
-
+        if self.qos_level != QOS_0:
+            variable_header += self.packet_identifier
         # Payload
         payload = self.application_message
 
         remain_length = variable_length_encode(
             len(variable_header + payload)).to_bytes(1, 'big')
-
         return fixed_header + remain_length + variable_header + payload
 
 

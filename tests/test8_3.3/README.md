@@ -1,7 +1,4 @@
-# Tested usecase
-
-## RETAIN MESSAGE
-
+# Tested usecase - RETAIN MESSAGE
 ### MQTT-3.3.1-12
 If the RETAIN flag is 0, in a PUBLISH Packet sent by a Client to a Server, the 
 Server MUST NOT store the message and MUST NOT remove or replace any existing 

@@ -1,6 +1,4 @@
-# Tested usecase
-
-## WILDCARD
+# Tested usecase - WILDCARD
 
 ### MQTT-4.7.1-3
 The single-level wildcard can be used at any level in the Topic Filter, 

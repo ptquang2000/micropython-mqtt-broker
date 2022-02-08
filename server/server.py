@@ -4,7 +4,7 @@ import time
 import re
 import server.topic as tp
 import server.packet as pk
-from server.utility import MQTTProtocolError, variable_length_decode
+from server.utility import MQTTProtocolError, variable_length_decode, current_time
 
 
 class Client():
@@ -20,21 +20,13 @@ class Client():
         # Session state
         self._client_id = None
         self._subscriptions = set()
-        self._qos1 = {
-            'sent': None,
-            'pending': None,
-        }
-        self._qos2 = {
-            'sent': None,
-            'pending': None,
-            'received': None
-        }
+        self._recv_queue = dict()
+        self._write_queue = dict()
 
         # Interval time
         self._interval_time = 0
         self._next_packet_time = 0
-        
-        self._store_message = None
+        self._resend_interval = 0
 
 
     @property
@@ -48,11 +40,11 @@ class Client():
 
 
     def __str__(self):
-        return self.identifier
+        return self._client_id
 
     
     def __eq__(self, id):
-        return id == self.identifier
+        return id == self._client_id
 
 
     def __hash__(self):
@@ -77,23 +69,17 @@ class Client():
     
     def keep_alive_setup(self, packet):
         self._interval_time = packet.keep_alive
+        self._resend_interval = int(packet.keep_alive * 1.5 / 10)
 
 
     def keep_alive(self):
         self._next_packet_time = int(1.5 * self._interval_time)
-        current_time = time.localtime()
-        self._next_packet_time += int(current_time[3] * 3600 
-            + current_time[4] * 60 
-            + current_time[5])
+        self._next_packet_time += current_time()
 
 
     @property
     def remaining_time(self):
-        current_time = time.localtime()
-        remaining_time = (current_time[3] * 3600 
-            + current_time[4] * 60 
-            + current_time[5])
-        return int(self._next_packet_time - remaining_time)
+        return int(self._next_packet_time - current_time())
 
 
     def session_start(self):
@@ -109,11 +95,13 @@ class Client():
     
     def error_handler(self, e, packet):
         if e.value == 'MQTT-3.1.2-2':
-            packet.variable_header.update({'return_code': pk.UNACCECCEPTABLE_PROTOCOL})
+            packet.variable_header.update(
+                {'return_code': pk.UNACCECCEPTABLE_PROTOCOL})
             self._conn.write(packet.connack)
 
         elif e.value == 'MQTT-3.1.3-9':
-            packet.variable_header.update({'return_code': pk.IDENTIFIER_REJECTED})
+            packet.variable_header.update(
+                {'return_code': pk.IDENTIFIER_REJECTED})
             self._conn.write(packet.connack)
 
         self.disconnect(e)
@@ -131,14 +119,12 @@ class Client():
         Client.sessions.pop(self._client_id, None)
         self._conn.close()
 
-    
+
     def worker(self):
         # [MQTT-3.1.2-24]
         while self._interval_time == 0 or self.remaining_time > 0:
             try:
                 buffer = self._conn.recv(1)
-                if buffer == b'':
-                    continue
                 packet = pk.Packet(buffer)
                 try:
                     Client.s_lock.acquire()
@@ -147,8 +133,8 @@ class Client():
                     self.error_handler(e, packet)
                     break
                 else:
-                    self >> packet
                     self.log(packet)
+                    self >> packet
                     self.keep_alive()
                 finally:
                     Client.s_lock.release()
@@ -160,13 +146,22 @@ class Client():
             self.disconnect('Timeout')
         _thread.exit()
 
-    
-    def store_message(self, packet):
-        self._store_message = packet.publish
 
+    def store_message(self, packet, recv=False):
+        if recv:
+            self._recv_queue[packet.packet_identifier] = {
+                'packet': packet,
+                'time': current_time(),
+            }
+        else:
+            self._write_queue[packet.packet_identifier] = {
+                'packet': packet,
+                'time': current_time(),
+            }
 
-    def discard_message(self):
-        self._store_message = None
+    def discard_message(self, packet_identifier):
+        self._recv_queue.pop(packet_identifier, None)
+        self._write_queue.pop(packet_identifier, None)
 
 
     # Variable header and Payload Processing
@@ -174,6 +169,7 @@ class Client():
         packet._remain_length = variable_length_decode(self.conn)
         request_handler = getattr(packet, 
             pk.PACKET_NAME[packet.packet_type].lower()+'_request')
+
         if packet._remain_length != 0:
             request_handler(self.conn.recv(packet._remain_length))
         else:
@@ -187,27 +183,24 @@ class Client():
             packet.variable_header.update({'session_present': '0'})
             packet.variable_header.update({'return_code': pk.CONNECTION_ACCEPTED})
             self._client_id = packet.client_identifier
-            
             if packet.protocol_level != 4:
                 raise MQTTProtocolError('MQTT-3.1.2-2')
-
             if (len(packet.client_identifier) > 23 or 
                 not re.match('[0-9a-zA-Z]+$', 
                     packet.client_identifier.decode('UTF-8'))):
                 raise MQTTProtocolError('MQTT-3.1.3-5')
-
             self.clean_session_handler(packet)
             self.keep_alive_setup(packet)
 
         elif pk.PUBLISH == packet.packet_type:
             Client.topics[packet.topic_name] = packet
-            if packet.qos_level != pk.QOS_0:
-                self.store_message(packet)
+
         elif pk.SUBSCRIBE == packet.packet_type:
             for topic_filter, qos in packet.topic_filters.items():
                 self._subscriptions.add(topic_filter)
                 topic = Client.topics[topic_filter]
                 topic.add(self, qos)
+
         elif pk.UNSUBSCRIBE == packet.packet_type:
             for topic_filter in packet.topic_filters:
                 try:
@@ -217,8 +210,9 @@ class Client():
                 else:
                     topic = Client.topics[topic_filter]
                     topic.pop(self)
+
         elif pk.DISCONNECT == packet.packet_type:
-            raise MQTTProtocolError('Client disconnect')
+            raise MQTTProtocolError('Client Disconnect')
 
 
     # Actions
@@ -226,9 +220,9 @@ class Client():
         # Pre Processing
         packet_name = pk.PACKET_NAME[packet.packet_type] + getattr(packet, 'qos_level')
         if packet_name in ['PUBLISH10', 'PUBREC']:
-            self.store_message()
-        elif packet.packet_type in [pk.PUBACK, pk.PUBREL, pk.PUBCOMP]:
-            self.discard_message()
+            self.store_message(packet, recv=True)
+        elif packet.packet_type in [pk.PUBACK, pk.PUBREC, pk.PUBCOMP, pk.PUBREL]:
+            self.discard_message(packet.packet_identifier)
 
         try:
             reponse = getattr(packet, pk.PACKET_RESPONSE[packet_name].lower())
@@ -236,6 +230,21 @@ class Client():
             pass
         else:
             self._conn.write(reponse)
+
+        cur_time = current_time()
+        for store_msg in self._write_queue:
+            if cur_time - store_msg['time'] < self._resend_interval:
+                continue
+            store_msg['time'] = cur_time
+            self._conn.write(store_msg['packet'].publish)
+        for store_msg in self._recv_queue:
+            if cur_time - store_msg['time'] < self._resend_interval:
+                continue
+            store_msg['time'] = cur_time
+            if store_msg['packet'].packet_type == pk.PUBLISH:
+                self._conn.write(store_msg['packet'].pubrec)
+            elif store_msg['packet'].packet_type == pk.PUBREC:
+                self._conn.write(store_msg['packet'].pubrel)
 
 
 class Server():
@@ -284,7 +293,7 @@ if __name__ == '__main__':
         ip = sys.argv[1]
         print(f'Test Broker')
         server = Server(ip)
-        server.log(1)
+        # server.log(1)
         server.loop_forever()
         server._server.close()
         print('Server close')

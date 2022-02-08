@@ -1,7 +1,4 @@
-# Tested usecase
-
-## SUBSCRIRBE
-
+# Tested usecase - SUBSCRIRBE
 ### MQTT-3.8.4-1
 When the Server receives a SUBSCRIBE Packet from a Client, the Server MUST 
 respond with a SUBACK Packet

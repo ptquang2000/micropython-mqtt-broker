@@ -1,7 +1,4 @@
-# Tested usecase
-
-## RETAIN MESSAGE
-
+# Tested usecase - RETAIN MESSAGE
 ### MQTT-3.3.1-5
 If the RETAIN flag is set to 1, in a PUBLISH Packet sent by a Client to a Server, 
 the Server MUST store the Application Message and its QoS, so that it can be 

@@ -1,7 +1,4 @@
-# Tested usecase
-
-## UNSUBRIBE
-
+# Tested usecase - UNSUBRIBE
 ### MQTT-3.10.4-1
 The Topic Filters (whether they contain wildcards or not) supplied in an 
 UNSUBSCRIBE packet MUST be compared character-by-character with the current 

@@ -1,8 +1,16 @@
+import time
+
+
 def utf8_encoded_string(payload):
     OFFSET = 2
     LSB = payload[0]
     MSB = payload[1]
-    return payload[LSB+OFFSET:MSB+OFFSET], payload[MSB+OFFSET:] 
+    return payload[LSB+OFFSET:MSB+OFFSET], payload[MSB+OFFSET:]
+
+
+def current_time():
+    current_time = time.localtime()
+    return int(current_time[3] * 3600 + current_time[4] * 60 + current_time[5])
 
 
 def variable_byte_integer(conn):

@@ -3,7 +3,7 @@ import server.packet as pk
 class Topic():
     _max_qos = pk.QOS_2
 
-    def __init__(self, topic_name=None, app_msg=None, qos=pk.QOS_0, parent=None):
+    def __init__(self, topic_name=None, app_msg=None, qos=pk.QOS_2, parent=None):
         self._name = topic_name
         self._app_msg = app_msg
         self._qos_level = qos
@@ -41,28 +41,49 @@ class Topic():
     def retain_message(self, identifier):
         packet = pk.Packet()
         packet.packet_type = pk.PUBLISH
-        packet.flag_bits = int.from_bytes(
-            pk.QOS_CODE[self._subscriber_qos[identifier]], 'big') << 1
+        qos_level = min(
+            self._qos_level, 
+            self._subscriber_qos[identifier],
+            Topic._max_qos
+        )
+        packet.flag_bits = int.from_bytes(pk.QOS_CODE[qos_level], 'big') << 1
         packet.flag_bits = packet.flag_bits | 1
+        if qos_level != pk.QOS_0:
+            packet.variable_header.update({'packet_identifier': packet.new_packet_id()})
         packet.variable_header.update({'topic_name': self.topic_filter})
         packet.payload.update({'application_message': self._app_msg})
-        return packet.publish
+        return packet
 
 
     def add(self, client, qos):
         # [MQTT-3.3.1-8]
         self._subscription.add(client)
-        self._subscriber_qos[client.identifier] = min([
-            self._qos_level, Topic._max_qos, qos])
+        try:
+            qos = max(self._subscriber_qos[client.identifier], qos)
+        except KeyError:
+            pass
+        finally:
+            self._subscriber_qos[client.identifier] =  min([
+                self._qos_level, 
+                Topic._max_qos, 
+                qos])
         if self.retain:
-            client.conn.write(self.retain_message(client.identifier))
+            packet = self.retain_message(client.identifier)
+            client.conn.write(packet.publish)
+            if packet.qos_level != pk.QOS_0:
+                packet.flag_bits = packet.flag_bits | 0x08
+                client.store_message(packet)
 
         if self.name == b'#':
             self._parent._subscription.add(client)
             self._parent._subscriber_qos[client.identifier] = min(
                 [self._parent._qos_level, Topic._max_qos, qos])
             if self._parent.retain:
-                client.conn.write(self._parent.retain_message(client.identifier))
+                packet = self._parent.retain_message(client.identifier)
+                client.conn.write(packet.publish)
+                if packet.qos_level != pk.QOS_0:
+                    packet.flag_bits = packet.flag_bits | 0x08
+                    client.store_message(packet)
     
 
     def pop(self, client):
@@ -147,12 +168,24 @@ class Topic():
                     topic._app_msg = packet.application_message
                     topic._qos_level = packet.qos_level
                 for subscriber in topic._subscription:
+                    origin_qos = packet.qos_level
+
                     qos_level = min(
                         packet.qos_level, 
-                        topic._subscriber_qos[subscriber.identifier])
+                        topic._subscriber_qos[subscriber.identifier],
+                        Topic._max_qos
+                    )
                     packet.flag_bits = int.from_bytes(
-                        pk.QOS_CODE[qos_level], 'big') << 1
+                        pk.QOS_CODE[qos_level], 'big'
+                    ) << 1
                     subscriber.conn.write(packet.publish)
+
+                    packet.flag_bits = int.from_bytes(
+                        pk.QOS_CODE[origin_qos], 'big'
+                    ) << 1
+                    if qos_level != pk.QOS_0:
+                        packet.flag_bits = packet.flag_bits | 0x08
+                        subscriber.store_message(packet)
 
 
     @staticmethod
