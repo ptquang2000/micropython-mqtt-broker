@@ -6,7 +6,8 @@
 
 ## About
 * MQTT version 3.1.1
-* Tested features in [tests directory](tests)
+* Currently developing in unix port
+* Tested scenarios in [tests directory](tests)
 
 ## Test MQTT Broker
 ```bash

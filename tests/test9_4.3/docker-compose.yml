@@ -37,23 +37,23 @@ services:
     extra_hosts:
       - "mqtt:127.24.0.4"
 
-  subscriber4:
-    container_name: subscriber4
+  publisher1:
+    container_name: publisher1
     image: client
     volumes:
-      - ./subscriber2.py:/client/subscriber.py
-    command: python subscriber.py mqtt 4
-    environment:
-      - PYTHONUNBUFFERED=1
+      - ./publisher1.py:/client/publisher.py
+    command: python publisher.py mqtt
     network_mode: "host"
     extra_hosts:
       - "mqtt:127.24.0.4"
+    environment:
+      - PYTHONUNBUFFERED=1
 
-  publisher:
-    container_name: publisher
+  publisher2:
+    container_name: publisher2
     image: client
     volumes:
-      - ./publisher.py:/client/publisher.py
+      - ./publisher2.py:/client/publisher.py
     command: python publisher.py mqtt
     network_mode: "host"
     extra_hosts:

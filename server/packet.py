@@ -99,13 +99,6 @@ class Packet():
         self._variable_header = dict()
         self._payload = dict()
 
-    
-    def new_packet_id(self):
-        Packet._packet_identifier += 1
-        return (Packet._packet_identifier
-            if Packet._packet_identifier < 16 ** 2
-            else 1).to_bytes(2, 'big')
-
 
     @property
     def packet_type(self):
@@ -343,6 +336,15 @@ class Packet():
     def pubrec(self):
         # Fixed Header
         fixed_header = (PUBREC << 4 | RESERVED).to_bytes(1, 'big')
+        remain_length = variable_length_encode(2).to_bytes(1, 'big')
+        packet_identifier = self.packet_identifier
+        return fixed_header + remain_length + packet_identifier
+
+
+    @property
+    def pubrel(self):
+        # Fixed Header
+        fixed_header = (PUBREL << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
         packet_identifier = self.packet_identifier
         return fixed_header + remain_length + packet_identifier

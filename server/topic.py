@@ -48,8 +48,6 @@ class Topic():
         )
         packet.flag_bits = int.from_bytes(pk.QOS_CODE[qos_level], 'big') << 1
         packet.flag_bits = packet.flag_bits | 1
-        if qos_level != pk.QOS_0:
-            packet.variable_header.update({'packet_identifier': packet.new_packet_id()})
         packet.variable_header.update({'topic_name': self.topic_filter})
         packet.payload.update({'application_message': self._app_msg})
         return packet
@@ -69,6 +67,8 @@ class Topic():
                 qos])
         if self.retain:
             packet = self.retain_message(client.identifier)
+            if packet.qos_level != pk.QOS_0:
+                packet.variable_header.update({'packet_identifier': client.new_packet_id()})
             client.conn.write(packet.publish)
             if packet.qos_level != pk.QOS_0:
                 packet.flag_bits = packet.flag_bits | 0x08
@@ -76,10 +76,19 @@ class Topic():
 
         if self.name == b'#':
             self._parent._subscription.add(client)
-            self._parent._subscriber_qos[client.identifier] = min(
-                [self._parent._qos_level, Topic._max_qos, qos])
+            try:
+                qos = max(self._parent._subscriber_qos[client.identifier], qos)
+            except KeyError:
+                pass
+            finally:
+                self._parent._subscriber_qos[client.identifier] =  min([
+                    self._parent._qos_level, 
+                    Topic._max_qos, 
+                    qos])
             if self._parent.retain:
                 packet = self._parent.retain_message(client.identifier)
+                if packet.qos_level != pk.QOS_0:
+                    packet.variable_header.update({'packet_identifier': client.new_packet_id()})
                 client.conn.write(packet.publish)
                 if packet.qos_level != pk.QOS_0:
                     packet.flag_bits = packet.flag_bits | 0x08
@@ -169,21 +178,27 @@ class Topic():
                     topic._qos_level = packet.qos_level
                 for subscriber in topic._subscription:
                     origin_qos = packet.qos_level
+                    try:
+                        origin_pk_id = packet.packet_identifier
+                    except AttributeError:
+                        pass
 
                     qos_level = min(
                         packet.qos_level, 
                         topic._subscriber_qos[subscriber.identifier],
-                        Topic._max_qos
                     )
                     packet.flag_bits = int.from_bytes(
                         pk.QOS_CODE[qos_level], 'big'
                     ) << 1
+                    if qos_level != pk.QOS_0:
+                        packet.variable_header.update({'packet_identifier': subscriber.new_packet_id()})
                     subscriber.conn.write(packet.publish)
 
                     packet.flag_bits = int.from_bytes(
                         pk.QOS_CODE[origin_qos], 'big'
                     ) << 1
                     if qos_level != pk.QOS_0:
+                        packet.variable_header.update({'packet_identifier': origin_pk_id})
                         packet.flag_bits = packet.flag_bits | 0x08
                         subscriber.store_message(packet)
 

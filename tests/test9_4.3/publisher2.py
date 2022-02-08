@@ -10,15 +10,10 @@ def on_log(client, userdata, level, buf):
     print('log:', buf)
 
 
-def on_publish(client, userdata, mid):
-    print("mid: "+str(mid))
-
-
 def publish():
-    client_id = f'publisher'
+    client_id = f'publisher2'
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_log = on_log
-    client.on_publish = on_publish
     client.connect(broker, port)
     client.loop_start()
     sleep(2)
@@ -26,7 +21,7 @@ def publish():
     (rc, mid) = client.publish(
         'house/room', 
         msg, 
-        qos=1)
+        qos=2)
     sleep(3)
     client.disconnect()
     sleep(1)

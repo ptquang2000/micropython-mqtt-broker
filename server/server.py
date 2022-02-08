@@ -19,6 +19,7 @@ class Client():
 
         # Session state
         self._client_id = None
+        self._packet_identifier = 0
         self._subscriptions = set()
         self._recv_queue = dict()
         self._write_queue = dict()
@@ -49,6 +50,13 @@ class Client():
 
     def __hash__(self):
         return hash(self._client_id)
+
+    
+    def new_packet_id(self):
+        self._packet_identifier += 1
+        return (self._packet_identifier
+            if self._packet_identifier < 16 ** 2
+            else 1).to_bytes(2, 'big')
 
 
     def clean_session_handler(self, packet):
@@ -88,8 +96,8 @@ class Client():
 
     def log(self, packet):
         print(f'\n<----- Client ID:\t{str(self.identifier, "utf-8")} \t----->')
-        print(f'<----- Object at:\t{hex(id(self))} \t----->')
-        print(f'<----- Thread number:\t{_thread.get_ident()} \t----->')
+        # print(f'<----- Object at:\t{hex(id(self))} \t----->')
+        # print(f'<----- Thread number:\t{_thread.get_ident()} \t----->')
         print(packet)
 
     
@@ -113,6 +121,15 @@ class Client():
         print(f'Cause: {cause}')
         print(f'Thread {_thread.get_ident()}')
         print(f'Remain Time: {self.remaining_time}')
+        print('Unacknowledge Receive Queue')
+        for _, info in self._recv_queue.items():
+            print(f'Last receive: {info["time"]}')
+            print(info['packet'])
+        print('Unacknowledge Send Queue')
+        for _, info in self._write_queue.items():
+            print(f'Last send: {info["time"]}')
+            print(info['packet'])
+        print(f'*********************************\n')
         for topic_filter in self._subscriptions:
             topic = Client.topics[topic_filter]
             topic.pop(self)
@@ -125,9 +142,9 @@ class Client():
         while self._interval_time == 0 or self.remaining_time > 0:
             try:
                 buffer = self._conn.recv(1)
+                Client.s_lock.acquire()
                 packet = pk.Packet(buffer)
                 try:
-                    Client.s_lock.acquire()
                     self << packet
                 except MQTTProtocolError as e:
                     self.error_handler(e, packet)
@@ -232,19 +249,19 @@ class Client():
             self._conn.write(reponse)
 
         cur_time = current_time()
-        for store_msg in self._write_queue:
-            if cur_time - store_msg['time'] < self._resend_interval:
+        for _, pk_info in self._write_queue.items():
+            if cur_time - pk_info['time'] < self._resend_interval:
                 continue
-            store_msg['time'] = cur_time
-            self._conn.write(store_msg['packet'].publish)
-        for store_msg in self._recv_queue:
-            if cur_time - store_msg['time'] < self._resend_interval:
+            pk_info['time'] = cur_time
+            self._conn.write(pk_info['packet'].publish)
+        for _, pk_info in self._recv_queue.items():
+            if cur_time - pk_info['time'] < self._resend_interval:
                 continue
-            store_msg['time'] = cur_time
-            if store_msg['packet'].packet_type == pk.PUBLISH:
-                self._conn.write(store_msg['packet'].pubrec)
-            elif store_msg['packet'].packet_type == pk.PUBREC:
-                self._conn.write(store_msg['packet'].pubrel)
+            pk_info['time'] = cur_time
+            if pk_info['packet'].packet_type == pk.PUBLISH:
+                self._conn.write(pk_info['packet'].pubrec)
+            elif pk_info['packet'].packet_type == pk.PUBREC:
+                self._conn.write(pk_info['packet'].pubrel)
 
 
 class Server():
