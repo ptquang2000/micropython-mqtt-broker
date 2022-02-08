@@ -87,8 +87,8 @@ class Packet():
 
     def __init__(self, buffer=b'\x00'):
         # Fixed Header
-        self._packet_type = buffer[0] >> 4
-        self._flag_bits = buffer[0] & 0x0f
+        self._packet_type = int.from_bytes(buffer, 'big') >> 4
+        self._flag_bits = int.from_bytes(buffer, 'big') & 0x0f
 
         # Flag bits
         if self._packet_type in (SUBSCRIBE, UNSUBSCRIBE, PUBREL):
