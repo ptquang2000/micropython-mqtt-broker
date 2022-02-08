@@ -7,10 +7,6 @@ import server.packet as pk
 from server.utility import MQTTProtocolError, variable_length_decode, current_time
 
 
-SENT = 0
-ACK = 1
-PENDING = 2
-
 class Client():
     clean_sessions = dict()
     sessions = dict()
@@ -69,15 +65,20 @@ class Client():
                 Client.clean_sessions[self._client_id] = self
             else:
                 old_session = Client.clean_sessions[self._client_id]
+                # reset session state
                 self._subscriptions = old_session._subscriptions
+                self._sent_queue = old_session._sent_queue
+                self._pending_queue = old_session._pending_queue
+                self._ack_queue = old_session._ack_queue
+                # re-send uncomplete qos 1, 2
                 for topic_filter, qos in self._subscriptions.items():
                     topic = Client.topics[topic_filter]
                     topic.add(self, qos)
-                for sent in old_session._sent_queue:
+                for _, sent in old_session._sent_queue.items():
                     self._conn.write(sent.publish)
-                for pending in old_session._pending_queue:
+                for _, pending in old_session._pending_queue.items():
                     self._conn.write(pending.pubrec)
-                for ack in old_session._ack_queue:
+                for _, ack in old_session._ack_queue.items():
                     self._conn.write(ack.pubrel)
                 Client.clean_sessions.pop(self._client_id)
                 del old_session
@@ -129,20 +130,19 @@ class Client():
         self.disconnect(e)
         
 
-
     def disconnect(self, cause):
         print(f'\n*** Closing Connection From {self.identifier} ***')
         print(f'Cause: {cause}')
         print(f'Thread {_thread.get_ident()}')
         print(f'Remain Time: {self.remaining_time}')
         print('Sent Queue')
-        for packet in self._sent_queue:
+        for _, packet in self._sent_queue.items():
             print(packet)
         print('Pending Queue')
-        for packet in self._pending_queue:
+        for _, packet in self._pending_queue.items():
             print(packet)
         print('Acknownledge Queue')
-        for packet in self._ack_queue:
+        for _, packet in self._ack_queue.items():
             print(packet)
         print(f'*********************************\n')
         for topic_filter in self._subscriptions:
@@ -163,11 +163,11 @@ class Client():
                 packet = pk.Packet(buffer)
                 try:
                     self << packet
+                    # self.log(packet)
                 except MQTTProtocolError as e:
                     self.error_handler(e, packet)
                     break
                 else:
-                    # self.log(packet)
                     self >> packet
                     self.keep_alive()
                 finally:
@@ -318,7 +318,7 @@ if __name__ == '__main__':
         ip = sys.argv[1]
         print(f'Test Broker')
         server = Server(ip)
-        # server.log(5)
+        server.log(2)
         server.loop_forever()
         server._server.close()
         print('Server close')

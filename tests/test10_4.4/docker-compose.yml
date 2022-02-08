@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  subscriber1:
+    container_name: subscriber1
+    image: client
+    volumes:
+      - ./subscriber1.py:/client/subscriber.py
+    command: python subscriber.py mqtt
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  publisher1:
+    container_name: publisher1
+    image: client
+    volumes:
+      - ./publisher1.py:/client/publisher.py
+    command: python publisher.py mqtt
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
+    environment:
+      - PYTHONUNBUFFERED=1
