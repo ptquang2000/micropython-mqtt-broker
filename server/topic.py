@@ -183,7 +183,6 @@ class Topic():
                     origin_pk_id = packet.packet_identifier
                 except AttributeError:
                     pass
-                print(packet.packet_identifier)
                 for subscriber in topic._subscription:
                     qos_level = min(packet.qos_level, 
                         topic._subscriber_qos[subscriber.identifier])
@@ -202,7 +201,6 @@ class Topic():
                 packet.flag_bits = origin_flag_bits
                 if packet.qos_level != pk.QOS_0:
                     packet.variable_header.update({'packet_identifier': origin_pk_id})
-                print(packet.packet_identifier)
 
 
     @staticmethod
