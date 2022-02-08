@@ -176,7 +176,7 @@ class Packet():
             return ''
 
         raise AttributeError(
-            'Packet does not have "{0}" attribute'.format(attr))
+            'Packet {0} - {1:04b} does not have "{2}" attribute'.format(PACKET_NAME[self._packet_type], self._flag_bits, attr))
 
 
     def connect_request(self, buffer):

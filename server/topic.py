@@ -72,7 +72,7 @@ class Topic():
             client.conn.write(packet.publish)
             if packet.qos_level != pk.QOS_0:
                 packet.flag_bits = packet.flag_bits | 0x08
-                client.store_message(packet)
+                client.store_message(packet, 'sent')
 
         if self.name == b'#':
             self._parent._subscription.add(client)
@@ -92,7 +92,7 @@ class Topic():
                 client.conn.write(packet.publish)
                 if packet.qos_level != pk.QOS_0:
                     packet.flag_bits = packet.flag_bits | 0x08
-                    client.store_message(packet)
+                    client.store_message(packet, 'sent')
     
 
     def pop(self, client):
@@ -176,31 +176,33 @@ class Topic():
                 if packet.retain == '1':
                     topic._app_msg = packet.application_message
                     topic._qos_level = packet.qos_level
-                for subscriber in topic._subscription:
-                    origin_qos = packet.qos_level
-                    try:
-                        origin_pk_id = packet.packet_identifier
-                    except AttributeError:
-                        pass
 
-                    qos_level = min(
-                        packet.qos_level, 
-                        topic._subscriber_qos[subscriber.identifier],
-                    )
+                # Save origin
+                origin_flag_bits = packet.flag_bits
+                try:
+                    origin_pk_id = packet.packet_identifier
+                except AttributeError:
+                    pass
+                print(packet.packet_identifier)
+                for subscriber in topic._subscription:
+                    qos_level = min(packet.qos_level, 
+                        topic._subscriber_qos[subscriber.identifier])
                     packet.flag_bits = int.from_bytes(
                         pk.QOS_CODE[qos_level], 'big'
                     ) << 1
                     if qos_level != pk.QOS_0:
-                        packet.variable_header.update({'packet_identifier': subscriber.new_packet_id()})
+                        packet.variable_header.update(
+                            {'packet_identifier': subscriber.new_packet_id()})
                     subscriber.conn.write(packet.publish)
-
-                    packet.flag_bits = int.from_bytes(
-                        pk.QOS_CODE[origin_qos], 'big'
-                    ) << 1
                     if qos_level != pk.QOS_0:
-                        packet.variable_header.update({'packet_identifier': origin_pk_id})
+                        # Set DUP for re-send
                         packet.flag_bits = packet.flag_bits | 0x08
-                        subscriber.store_message(packet)
+                        subscriber.store_message(packet, 'sent')
+                # Reset packet
+                packet.flag_bits = origin_flag_bits
+                if packet.qos_level != pk.QOS_0:
+                    packet.variable_header.update({'packet_identifier': origin_pk_id})
+                print(packet.packet_identifier)
 
 
     @staticmethod

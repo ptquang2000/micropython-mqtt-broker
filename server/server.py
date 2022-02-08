@@ -7,6 +7,10 @@ import server.packet as pk
 from server.utility import MQTTProtocolError, variable_length_decode, current_time
 
 
+SENT = 0
+ACK = 1
+PENDING = 2
+
 class Client():
     clean_sessions = dict()
     sessions = dict()
@@ -21,8 +25,9 @@ class Client():
         self._client_id = None
         self._packet_identifier = 0
         self._subscriptions = set()
-        self._recv_queue = dict()
-        self._write_queue = dict()
+        self._sent_queue = dict()
+        self._ack_queue = dict()
+        self._pending_queue = dict()
 
         # Interval time
         self._interval_time = 0
@@ -121,13 +126,17 @@ class Client():
         print(f'Cause: {cause}')
         print(f'Thread {_thread.get_ident()}')
         print(f'Remain Time: {self.remaining_time}')
-        print('Unacknowledge Receive Queue')
-        for _, info in self._recv_queue.items():
-            print(f'Last receive: {info["time"]}')
+        print('Sent Queue')
+        for _, info in self._sent_queue.items():
+            print(f'Last sent: {info["time"]}')
             print(info['packet'])
-        print('Unacknowledge Send Queue')
-        for _, info in self._write_queue.items():
-            print(f'Last send: {info["time"]}')
+        print('Pending Queue')
+        for _, info in self._pending_queue.items():
+            print(f'Last pending: {info["time"]}')
+            print(info['packet'])
+        print('Acknownledge Queue')
+        for _, info in self._ack_queue.items():
+            print(f'Last ack: {info["time"]}')
             print(info['packet'])
         print(f'*********************************\n')
         for topic_filter in self._subscriptions:
@@ -164,21 +173,17 @@ class Client():
         _thread.exit()
 
 
-    def store_message(self, packet, recv=False):
-        if recv:
-            self._recv_queue[packet.packet_identifier] = {
-                'packet': packet,
-                'time': current_time(),
-            }
-        else:
-            self._write_queue[packet.packet_identifier] = {
-                'packet': packet,
-                'time': current_time(),
-            }
+    def store_message(self, packet, state):
+        queue = getattr(self, f'_{state}_queue')
+        queue[packet.packet_identifier] = {
+            'packet': packet,
+            'time': current_time(),
+        }
 
-    def discard_message(self, packet_identifier):
-        self._recv_queue.pop(packet_identifier, None)
-        self._write_queue.pop(packet_identifier, None)
+
+    def discard_message(self, packet_identifier, state):
+        queue = getattr(self, f'_{state}_queue')
+        queue.pop(packet_identifier)
 
 
     # Variable header and Payload Processing
@@ -209,8 +214,27 @@ class Client():
             self.clean_session_handler(packet)
             self.keep_alive_setup(packet)
 
-        elif pk.PUBLISH == packet.packet_type:
+        elif pk.PUBLISH == packet.packet_type and pk.QOS_1 == packet.qos_level:
             Client.topics[packet.topic_name] = packet
+
+        elif pk.PUBACK == packet.packet_type:
+            self.discard_message(packet.packet_identifier, 'sent')
+
+        elif pk.PUBLISH == packet.packet_type and pk.QOS_2 == packet.qos_level:
+            self.store_message(packet, 'pending')
+
+        elif pk.PUBREC == packet.packet_type:
+            # override publish message in _ack_queue
+            self.discard_message(packet.packet_identifier, 'sent')
+            self.store_message(packet, 'ack')
+
+        elif pk.PUBREL == packet.packet_type:
+            publish_packet = self._pending_queue[packet.packet_identifier]['packet']
+            Client.topics[publish_packet.topic_name] = publish_packet
+            self.discard_message(packet.packet_identifier, 'pending')
+
+        elif pk.PUBCOMP == packet.packet_type:
+            self.discard_message(packet.packet_identifier, 'ack')
 
         elif pk.SUBSCRIBE == packet.packet_type:
             for topic_filter, qos in packet.topic_filters.items():
@@ -236,11 +260,6 @@ class Client():
     def __rshift__(self, packet):
         # Pre Processing
         packet_name = pk.PACKET_NAME[packet.packet_type] + getattr(packet, 'qos_level')
-        if packet_name in ['PUBLISH10', 'PUBREC']:
-            self.store_message(packet, recv=True)
-        elif packet.packet_type in [pk.PUBACK, pk.PUBREC, pk.PUBCOMP, pk.PUBREL]:
-            self.discard_message(packet.packet_identifier)
-
         try:
             reponse = getattr(packet, pk.PACKET_RESPONSE[packet_name].lower())
         except KeyError:
@@ -249,19 +268,24 @@ class Client():
             self._conn.write(reponse)
 
         cur_time = current_time()
-        for _, pk_info in self._write_queue.items():
+        # QoS 1,2
+        for _, pk_info in self._sent_queue.items():
             if cur_time - pk_info['time'] < self._resend_interval:
                 continue
             pk_info['time'] = cur_time
             self._conn.write(pk_info['packet'].publish)
-        for _, pk_info in self._recv_queue.items():
+        # QoS 2
+        for _, pk_info in self._pending_queue.items():
             if cur_time - pk_info['time'] < self._resend_interval:
                 continue
             pk_info['time'] = cur_time
-            if pk_info['packet'].packet_type == pk.PUBLISH:
-                self._conn.write(pk_info['packet'].pubrec)
-            elif pk_info['packet'].packet_type == pk.PUBREC:
-                self._conn.write(pk_info['packet'].pubrel)
+            self._conn.write(pk_info['packet'].pubrec)
+        # QoS 2
+        for _, pk_info in self._ack_queue.items():
+            if cur_time - pk_info['time'] < self._resend_interval:
+                continue
+            pk_info['time'] = cur_time
+            self._conn.write(pk_info['packet'].pubrel)
 
 
 class Server():
@@ -310,7 +334,7 @@ if __name__ == '__main__':
         ip = sys.argv[1]
         print(f'Test Broker')
         server = Server(ip)
-        # server.log(1)
+        server.log(5)
         server.loop_forever()
         server._server.close()
         print('Server close')
