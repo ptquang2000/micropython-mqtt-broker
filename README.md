@@ -2,7 +2,7 @@
 
 ## Main Goal
 - Be able to work with paho-mqtt. 
-- Be able to run on ESP ? :D ?
+- Be able to run on ESP32
 
 ## About
 * MQTT version 3.1.1

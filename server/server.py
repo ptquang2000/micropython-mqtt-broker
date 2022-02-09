@@ -173,10 +173,8 @@ class Client():
                 finally:
                     Client.s_lock.release()
             except OSError as e:
-                if e.value == 104:
-                    self.disconnect(e)
-                    break
-                raise e
+                self.disconnect(e)
+                break
         else:
             self.disconnect('Timeout')
         _thread.exit()
@@ -282,12 +280,12 @@ class Server():
         self._server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._server.bind(ADDR)
         print('[SERVER]', self._ip, str(self._port))
-        print('... Listenning ... ')
 
 
     def loop_forever(self):
         self._server.settimeout(24*60*60.0)
         self._server.listen(10)
+        print('... Listenning ... ')
 
         while True:
             conn, addr = self._server.accept()
