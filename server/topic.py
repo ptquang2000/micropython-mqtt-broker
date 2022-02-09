@@ -214,12 +214,12 @@ class Topic():
 
 
     def __str__(self):
-        buffer = f'\n[ {self.topic_filter} ]'
+        buffer = '\n[ {0} ]'.format(self.topic_filter)
         if self._subscription:
             for subscriber in self._subscription:
-                buffer += f'\n\t> {subscriber} : {self._subscriber_qos[subscriber.identifier]}'
+                buffer += '\n\t> {0} : {1}'.format(subscriber, self._subscriber_qos[subscriber.identifier])
         if self.retain:
-            buffer += f'\n\t> retain msg: {self._app_msg}, QoS: {self._qos_level}'
+            buffer += '\n\t> retain msg: {0}, QoS: {1}'.format(self._app_msg, self._qos_level)
         for _, topic in self._children.items():
             buffer += str(topic)
         return buffer

@@ -110,9 +110,9 @@ class Client():
 
 
     def log(self, packet):
-        print(f'\n<----- Client ID:\t{str(self.identifier, "utf-8")} \t----->')
-        # print(f'<----- Object at:\t{hex(id(self))} \t----->')
-        # print(f'<----- Thread number:\t{_thread.get_ident()} \t----->')
+        print('\n<----- Client ID:\t{0} \t----->'.format(str(self.identifier, "utf-8")))
+        # print('<----- Object at:\t{0} \t----->'.format(hex(id(self))))
+        # print('<----- Thread number:\t{0} \t----->'.format(_thread.get_ident()))
         print(packet)
 
     
@@ -131,10 +131,10 @@ class Client():
         
 
     def disconnect(self, cause):
-        print(f'\n*** Closing Connection From {self.identifier} ***')
-        print(f'Cause: {cause}')
-        print(f'Thread {_thread.get_ident()}')
-        print(f'Remain Time: {self.remaining_time}')
+        print('\n*** Closing Connection From {0} ***'.format(self.identifier))
+        print('Cause: {0}'.format(cause))
+        print('Thread {0}'.format(_thread.get_ident()))
+        print('Remain Time: {0}'.format(self.remaining_time))
         print('Sent Queue')
         for _, packet in self._sent_queue.items():
             print(packet)
@@ -144,7 +144,7 @@ class Client():
         print('Acknownledge Queue')
         for _, packet in self._ack_queue.items():
             print(packet)
-        print(f'*********************************\n')
+        print('*********************************\n')
         for topic_filter in self._subscriptions:
             topic = Client.topics[topic_filter]
             topic.pop(self)
@@ -163,7 +163,7 @@ class Client():
                 packet = pk.Packet(buffer)
                 try:
                     self << packet
-                    # self.log(packet)
+                    self.log(packet)
                 except MQTTProtocolError as e:
                     self.error_handler(e, packet)
                     break
@@ -183,12 +183,12 @@ class Client():
 
 
     def store_message(self, packet, state):
-        queue = getattr(self, f'_{state}_queue')
+        queue = getattr(self, '_{0}_queue'.format(state))
         queue[packet.packet_identifier] = packet
 
 
     def discard_message(self, packet_identifier, state):
-        queue = getattr(self, f'_{state}_queue')
+        queue = getattr(self, '_{0}_queue'.format(state))
         queue.pop(packet_identifier)
 
 
@@ -316,11 +316,11 @@ if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
         ip = sys.argv[1]
-        print(f'Test Broker')
+        print('Test Broker')
         server = Server(ip)
-        server.log(2)
+        # server.log(2)
         server.loop_forever()
         server._server.close()
         print('Server close')
     else:
-        print(f'Missing broker IP address')
+        print('Missing broker IP address')
