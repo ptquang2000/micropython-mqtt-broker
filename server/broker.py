@@ -14,14 +14,6 @@ elif __name__ == '__main__':
     import packet as pk
     from utility import MQTTProtocolError, variable_length_decode, current_time
 
-g_lock = _thread.allocate_lock()
-
-def logging(buffer):
-    g_lock.acquire()
-    with open('log', 'a') as f:
-        f.write(str(buffer))
-    g_lock.release()
-
 
 class Client():
     clean_sessions = dict()
@@ -144,30 +136,30 @@ class Client():
 
 
     def log(self, packet):
-        logging('\n<----- Client ID:\t{} \t----->'.format(str(self.identifier, "utf-8")))
-        logging('{}'.format(str(packet)))
-        logging('\nSent Queue')
+        print('\n<----- Client ID:\t{} \t----->'.format(str(self.identifier, "utf-8")))
+        print('{}'.format(str(packet)))
+        print('\nSent Queue')
         for _, packet in self._sent_queue.items():
-            logging(packet)
-        logging('\nPending Queue')
+            print(packet)
+        print('\nPending Queue')
         for _, packet in self._pending_queue.items():
-            logging(packet)
-        logging('\nAcknownledge Queue')
+            print(packet)
+        print('\nAcknownledge Queue')
         for _, packet in self._ack_queue.items():
-            logging(packet)
-        logging('\n<------------------------------>\n')
+            print(packet)
+        print('\n<------------------------------>\n')
 
     
     def log_topic(self):
-        logging('\n========= TOPIC LOGS ==========')
-        logging('\n<------ Topics -->')
-        logging('{}'.format(str(Client.topics)))
-        logging('\n<----- Clean Session --->')
+        print('\n========= TOPIC LOGS ==========')
+        print('\n<------ Topics -->')
+        print('{}'.format(str(Client.topics)))
+        print('\n<----- Clean Session --->')
         for client in Client.clean_sessions:
-            logging('\n{}'.format(str(client)))
-        logging('\n<----- Session --------->')
+            print('\n{}'.format(str(client)))
+        print('\n<----- Session --------->')
         for client in Client.sessions:
-            logging('\n{}'.format(str(client)))
+            print('\n{}'.format(str(client)))
 
     
     def error_handler(self, e, packet):
@@ -185,19 +177,19 @@ class Client():
         
 
     def disconnect(self, cause):
-        logging('\n*** Closing Connection From {} ***'.format(self.identifier))
-        logging('\nCause: {}'.format(cause))
-        logging('\nRemain Time: {0}'.format(self.remaining_time))
-        logging('\nSent Queue')
+        print('\n*** Closing Connection From {} ***'.format(self.identifier))
+        print('\nCause: {}'.format(cause))
+        print('\nRemain Time: {0}'.format(self.remaining_time))
+        print('\nSent Queue')
         for _, packet in self._sent_queue.items():
-            logging(packet)
-        logging('\nPending Queue')
+            print(packet)
+        print('\nPending Queue')
         for _, packet in self._pending_queue.items():
-            logging(packet)
-        logging('\nAcknownledge Queue')
+            print(packet)
+        print('\nAcknownledge Queue')
         for _, packet in self._ack_queue.items():
-            logging(packet)
-        logging('\n*********************************\n')
+            print(packet)
+        print('\n*********************************\n')
         for topic_filter in self._subscriptions:
             topic = Client.topics[topic_filter]
             topic.pop(self)
@@ -231,14 +223,14 @@ class Client():
             else:
                 self.disconnect('Timeout')
         except Exception as e:
-            logging('\nCAUGHT EXCEPTION: {}\n'.format(str(repr(e))))
+            print('\nCAUGHT EXCEPTION: {}\n'.format(str(repr(e))))
             sys.print_exception(e)
             raise e 
         _thread.exit()
 
 
     def store_message(self, packet, state):
-        logging('\n{} STORE PACKET {} {} TO {}\n'.format(
+        print('\n{} STORE PACKET {} {} TO {}\n'.format(
             self.identifier,
             pk.PACKET_NAME[packet.packet_type],
             packet.packet_identifier,
@@ -248,7 +240,7 @@ class Client():
 
 
     def discard_message(self, packet, state):
-        logging('\n{} DISCARD PACKET {} {} FROM {}\n'.format(
+        print('\n{} DISCARD PACKET {} {} FROM {}\n'.format(
             self.identifier,
             pk.PACKET_NAME[packet.packet_type],
             packet.packet_identifier,
@@ -340,7 +332,7 @@ class Client():
         except KeyError:
             pass
         else:
-            logging('\nSENDING {} TO CLIENT WITH ID {}\n'.format(pk.PACKET_RESPONSE[packet_name], self.identifier))
+            print('\nSENDING {} TO CLIENT WITH ID {}\n'.format(pk.PACKET_RESPONSE[packet_name], self.identifier))
             self._conn.write(reponse)
 
         self.log_topic()
