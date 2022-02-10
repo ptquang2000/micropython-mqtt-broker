@@ -137,7 +137,7 @@ class Packet():
 
 
     def __str__(self):
-        out = '[{0}]'.format(PACKET_NAME[self._packet_type])
+        out = '\n[{0}]'.format(PACKET_NAME[self._packet_type])
         out += '\n[Fixed Header]'
         out += '\n\tpacket type: {0}\n\tflags: {1:04b}'.format(
                 self._packet_type , self._flag_bits)
@@ -249,7 +249,7 @@ class Packet():
         if self.qos_level != QOS_0:
             packet_identifier, buffer = buffer[0:2], buffer[2:]
             self._variable_header.update({
-                'packet_identifier': packet_identifier.decode('utf-8')})
+                'packet_identifier': int.from_bytes(packet_identifier, 'big')})
 
         # Payload
         self._payload.update({'application_message': buffer.decode('utf-8')})
@@ -259,35 +259,35 @@ class Packet():
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
         self._variable_header.update({
-            'packet_identifier': packet_identifier.decode('utf-8')})
+            'packet_identifier': int.from_bytes(packet_identifier, 'big')})
 
     
     def pubrel_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
         self._variable_header.update({
-            'packet_identifier': packet_identifier.decode('utf-8')})
+            'packet_identifier': int.from_bytes(packet_identifier, 'big')})
 
 
     def pubrec_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
         self._variable_header.update({
-            'packet_identifier': packet_identifier.decode('utf-8')})
+            'packet_identifier': int.from_bytes(packet_identifier, 'big')})
 
 
     def pubcomp_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
         self._variable_header.update({
-            'packet_identifier': packet_identifier.decode('utf-8')})
+            'packet_identifier': int.from_bytes(packet_identifier, 'big')})
 
 
     def subscribe_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
         self._variable_header.update({
-            'packet_identifier': packet_identifier.decode('utf-8')})
+            'packet_identifier': int.from_bytes(packet_identifier, 'big')})
 
         # Payload
         while buffer:
@@ -306,7 +306,7 @@ class Packet():
     def unsubscribe_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
-        self._variable_header.update({'packet_identifier': packet_identifier.decode('utf-8')})
+        self._variable_header.update({'packet_identifier': int.from_bytes(packet_identifier, 'big')})
 
         # Payload
         while buffer:
@@ -349,7 +349,7 @@ class Packet():
         # Fixed Header
         fixed_header = (PUBACK << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
-        packet_identifier = self.packet_identifier.encode()
+        packet_identifier = self.packet_identifier.to_bytes(2, 'big')
         return fixed_header + remain_length + packet_identifier
 
 
@@ -358,7 +358,7 @@ class Packet():
         # Fixed Header
         fixed_header = (PUBREC << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
-        packet_identifier = self.packet_identifier.encode()
+        packet_identifier = self.packet_identifier.to_bytes(2, 'big')
         return fixed_header + remain_length + packet_identifier
 
 
@@ -367,7 +367,7 @@ class Packet():
         # Fixed Header
         fixed_header = (PUBREL << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
-        packet_identifier = self.packet_identifier.encode()
+        packet_identifier = self.packet_identifier.to_bytes(2, 'big')
         return fixed_header + remain_length + packet_identifier
 
 
@@ -376,7 +376,7 @@ class Packet():
         # Fixed Header
         fixed_header = (PUBCOMP << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
-        packet_identifier = self.packet_identifier.encode()
+        packet_identifier = self.packet_identifier.to_bytes(2, 'big')
         return fixed_header + remain_length + packet_identifier
 
 
@@ -385,7 +385,7 @@ class Packet():
         # Fixed Header
         fixed_header = (SUBACK << 4 | RESERVED).to_bytes(1, 'big')
         # Variable Header
-        packet_identifier = self.packet_identifier.encode()
+        packet_identifier = self.packet_identifier.to_bytes(2, 'big')
         # Payload
         return_code = b''
         for _, qos_level in self.topic_filters.items():
@@ -405,7 +405,7 @@ class Packet():
         topic_name = self.topic_name.encode()
         variable_header = len(topic_name).to_bytes(2, 'big') + topic_name
         if self.qos_level != QOS_0:
-            variable_header += self.packet_identifier.encode()
+            variable_header += self.packet_identifier.to_bytes(2, 'big')
         # Payload
         payload = self.application_message.encode()
 
@@ -420,7 +420,7 @@ class Packet():
         fixed_header = (UNSUBACK << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
         # Variable Header
-        packet_identifier = self.packet_identifier.encode()
+        packet_identifier = self.packet_identifier.to_bytes(2, 'big')
         return fixed_header + remain_length + packet_identifier
 
     

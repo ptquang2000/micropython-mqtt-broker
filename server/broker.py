@@ -17,8 +17,10 @@ g_lock = _thread.allocate_lock()
 def logging(buffer):
     g_lock.acquire()
     with open('log', 'a') as f:
-        f.write(buffer)
+        f.write(str(buffer))
     g_lock.release()
+
+
 class Client():
     clean_sessions = dict()
     sessions = dict()
@@ -66,7 +68,7 @@ class Client():
     
     def new_packet_id(self):
         self._packet_identifier += 1
-        return str(self._packet_identifier
+        return (self._packet_identifier
             if self._packet_identifier < 16 ** 2
             else 1)
 
@@ -77,8 +79,8 @@ class Client():
             '_packet_identifier': self._packet_identifier,
             '_subscriptions': self._subscriptions,
             '_sent_queue': {
-                pk_id: packet.serialize() for pk_id, packet in 
-                self._sent_queue
+                pk_id: packet.serialize() 
+                for pk_id, packet in self._sent_queue
             },
             '_ack_queue': {
                 pk_id: packet.serialize() 
@@ -140,28 +142,28 @@ class Client():
 
 
     def log(self, packet):
-        print('\n<----- Client ID:\t{} \t----->'.format(str(self.identifier, "utf-8")))
-        print('{}'.format(str(packet)))
-        print('Sent Queue')
+        logging('\n<----- Client ID:\t{} \t----->'.format(str(self.identifier, "utf-8")))
+        logging('{}'.format(str(packet)))
+        logging('\nSent Queue')
         for _, packet in self._sent_queue.items():
-            print(packet)
-        print('Pending Queue')
+            logging(packet)
+        logging('\nPending Queue')
         for _, packet in self._pending_queue.items():
-            print(packet)
-        print('Acknownledge Queue')
+            logging(packet)
+        logging('\nAcknownledge Queue')
         for _, packet in self._ack_queue.items():
-            print(packet)
-        print('*********************************\n')
-        print('===== SERVER LOGS =====')
-        print('<------ Topics -->', end='')
-        print('{}'.format(str(Client.topics)))
-        print('<----- Clean Session --->')
+            logging(packet)
+        logging('\n*********************************\n')
+        logging('\n===== SERVER LOGS =====')
+        logging('\n<------ Topics -->')
+        logging('{}'.format(str(Client.topics)))
+        logging('\n<----- Clean Session --->')
         for client in Client.clean_sessions:
-            print('{}'.format(str(client)))
-        print('<----- Session --------->')
+            logging('{}'.format(str(client)))
+        logging('\n<----- Session --------->')
         for client in Client.sessions:
-            print('{}'.format(str(client)))
-        print('=======================')
+            logging('{}'.format(str(client)))
+        logging('\n\<------------------------------>\n')
 
     
     def error_handler(self, e, packet):
@@ -179,19 +181,19 @@ class Client():
         
 
     def disconnect(self, cause):
-        print('\n*** Closing Connection From {} ***'.format(self.identifier))
-        print('Cause: {}'.format(cause))
-        print('Remain Time: {0}'.format(self.remaining_time))
-        print('Sent Queue')
+        logging('\n*** Closing Connection From {} ***'.format(self.identifier))
+        logging('\nCause: {}'.format(cause))
+        logging('\nRemain Time: {0}'.format(self.remaining_time))
+        logging('\nSent Queue')
         for _, packet in self._sent_queue.items():
-            print(packet)
-        print('Pending Queue')
+            logging(packet)
+        logging('\nPending Queue')
         for _, packet in self._pending_queue.items():
-            print(packet)
-        print('Acknownledge Queue')
+            logging(packet)
+        logging('\nAcknownledge Queue')
         for _, packet in self._ack_queue.items():
-            print(packet)
-        print('*********************************\n')
+            logging(packet)
+        logging('\n*********************************\n')
         for topic_filter in self._subscriptions:
             topic = Client.topics[topic_filter]
             topic.pop(self)
@@ -200,35 +202,37 @@ class Client():
 
 
     def worker(self):
-        # [MQTT-3.1.2-24]
-        while self._interval_time == 0 or self.remaining_time > 0:
-            try:
-                buffer = self._conn.recv(1)
-                if not buffer:
-                    continue
-                Client.s_lock.acquire()
-                packet = pk.Packet(buffer)
+        try:
+            while self._interval_time == 0 or self.remaining_time > 0:
                 try:
-                    self << packet
-                    self.log(packet)
-                except MQTTProtocolError as e:
-                    self.error_handler(e, packet)
+                    buffer = self._conn.recv(1)
+                    if not buffer:
+                        continue
+                    Client.s_lock.acquire()
+                    packet = pk.Packet(buffer)
+                    try:
+                        self << packet
+                    except MQTTProtocolError as e:
+                        self.error_handler(e, packet)
+                        break
+                    else:
+                        self >> packet
+                        self.keep_alive()
+                    finally:
+                        Client.s_lock.release()
+                except OSError as e:
+                    self.disconnect(e)
                     break
-                else:
-                    self >> packet
-                    self.keep_alive()
-                finally:
-                    Client.s_lock.release()
-            except OSError as e:
-                self.disconnect(e)
-                break
-        else:
-            self.disconnect('Timeout')
+            else:
+                self.disconnect('Timeout')
+        except Exception as e:
+            logging('THREAD ERROR: {}'.format(repr(e)))
+            raise e 
         _thread.exit()
 
 
     def store_message(self, packet, state):
-        print('\n{} STORE PACKET {} {} TO {}\n'.format(
+        logging('\n{} STORE PACKET {} {} TO {}\n'.format(
             self.identifier,
             pk.PACKET_NAME[packet.packet_type],
             packet.packet_identifier,
@@ -238,7 +242,7 @@ class Client():
 
 
     def discard_message(self, packet, state):
-        print('\n{} DISCARD PACKET {} {} FROM {}\n'.format(
+        logging('\n{} DISCARD PACKET {} {} FROM {}\n'.format(
             self.identifier,
             pk.PACKET_NAME[packet.packet_type],
             packet.packet_identifier,
@@ -261,6 +265,7 @@ class Client():
         if pk.CONNECT != packet.packet_type and not self.identifier:
             raise MQTTProtocolError('MQTT-3.1.0-1')
 
+        self.log(packet)
         # Actions
         if pk.CONNECT == packet.packet_type:
             packet.variable_header.update({'session_present': '0'})
@@ -324,7 +329,7 @@ class Client():
         except KeyError:
             pass
         else:
-            print('\nSENDING {} TO CLIENT WITH ID {}\n'.format(pk.PACKET_RESPONSE[packet_name], self.identifier))
+            logging('\nSENDING {} TO CLIENT WITH ID {}\n'.format(pk.PACKET_RESPONSE[packet_name], self.identifier))
             self._conn.write(reponse)
 
 
@@ -373,8 +378,8 @@ class Broker():
         self._socket.bind(socket.getaddrinfo(self._ip, self._port)[0][-1])
         self._socket.settimeout(timeout)
         self._socket.listen(5)
-        print('[SERVER]', self._ip, str(self._port))
-        print('... Listenning ... ')
+        logging('[SERVER] {} {}'.format(self._ip, str(self._port)))
+        logging('... Listenning ... ')
         while True:
             conn, addr = self._socket.accept()
             client = Client(conn, addr)
@@ -382,7 +387,7 @@ class Broker():
 
     
     def stop(self):
-        print('[\t\t BROKER CLOSING \t\t]')
+        logging('[\t\t BROKER CLOSING \t\t]')
         self._socket.close()
         with open('topic', 'w+b') as f:
             db = btree.open(f)
@@ -391,7 +396,7 @@ class Broker():
                 db[str(i).encode()] = topic.encode()
         with open('session', 'w+b') as f:
             db = btree.open(f)
-            for cid, client in Client.clean_sessions().items():
+            for cid, client in Client.clean_sessions.items():
                 db[cid] = client.serialize().encode()
 
 
@@ -399,11 +404,11 @@ if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
         ip = sys.argv[1]
-        print('Test Broker')
+        logging('Test Broker')
         server = Broker(ip)
         try:
             server.start()
         except KeyboardInterrupt:
             server.stop()
     else:
-        print('Missing broker IP address')
+        logging('Missing broker IP address')
