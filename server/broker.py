@@ -414,8 +414,8 @@ class Broker():
         with open('topic', 'w+b') as f:
             db = btree.open(f)
             topics = Client.topics.serialize()
-            for i, topic in enumerate(topics):
-                db[str(i).encode()] = topic.encode()
+            for topic in topics:
+                db[topic['topic_filter'].encode()] = topic.encode()
             db.flush()
             db.close()
         with open('session', 'w+b') as f:
