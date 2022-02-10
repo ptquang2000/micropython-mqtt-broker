@@ -80,15 +80,15 @@ class Client():
             '_subscriptions': self._subscriptions,
             '_sent_queue': {
                 pk_id: packet.serialize() 
-                for pk_id, packet in self._sent_queue
+                for pk_id, packet in self._sent_queue.items()
             },
             '_ack_queue': {
                 pk_id: packet.serialize() 
-                for pk_id, packet in self._ack_queue
+                for pk_id, packet in self._ack_queue.items()
             },
             '_pending_queue': {
                 pk_id: packet.serialize() 
-                for pk_id, packet in self._pending_queue
+                for pk_id, packet in self._pending_queue.items()
             },
         })
 
@@ -153,17 +153,19 @@ class Client():
         logging('\nAcknownledge Queue')
         for _, packet in self._ack_queue.items():
             logging(packet)
-        logging('\n*********************************\n')
-        logging('\n===== SERVER LOGS =====')
+        logging('\n<------------------------------>\n')
+
+    
+    def log_topic(self):
+        logging('\n========= TOPIC LOGS ==========')
         logging('\n<------ Topics -->')
         logging('{}'.format(str(Client.topics)))
         logging('\n<----- Clean Session --->')
         for client in Client.clean_sessions:
-            logging('{}'.format(str(client)))
+            logging('\n{}'.format(str(client)))
         logging('\n<----- Session --------->')
         for client in Client.sessions:
-            logging('{}'.format(str(client)))
-        logging('\n\<------------------------------>\n')
+            logging('\n{}'.format(str(client)))
 
     
     def error_handler(self, e, packet):
@@ -226,7 +228,7 @@ class Client():
             else:
                 self.disconnect('Timeout')
         except Exception as e:
-            logging('THREAD ERROR: {}'.format(repr(e)))
+            logging('\nCAUGHT EXCEPTION: {}\n'.format(str(repr(e))))
             raise e 
         _thread.exit()
 
@@ -264,8 +266,10 @@ class Client():
 
         if pk.CONNECT != packet.packet_type and not self.identifier:
             raise MQTTProtocolError('MQTT-3.1.0-1')
+        
+        if pk.CONNECT != packet.packet_type:
+            self.log(packet)
 
-        self.log(packet)
         # Actions
         if pk.CONNECT == packet.packet_type:
             packet.variable_header.update({'session_present': '0'})
@@ -318,7 +322,11 @@ class Client():
                     topic.pop(self)
 
         elif pk.DISCONNECT == packet.packet_type:
+            print('{} SEND DISCONNECT'.format(self.identifier))
             raise MQTTProtocolError('Client Disconnect')
+
+        if pk.CONNECT == packet.packet_type:
+            self.log(packet)
 
 
     # Response Packet
@@ -332,6 +340,8 @@ class Client():
             logging('\nSENDING {} TO CLIENT WITH ID {}\n'.format(pk.PACKET_RESPONSE[packet_name], self.identifier))
             self._conn.write(reponse)
 
+        self.log_topic()
+
 
 class Broker():
     def __init__(self, ip, port='1883'):
@@ -340,6 +350,8 @@ class Broker():
 
 
     def load(self):
+        with open('log', 'w+') as f:
+            pass
         try:
             with open('topic', 'r+b') as f:
                 db = btree.open(f)
@@ -348,6 +360,7 @@ class Broker():
                     topic = Client.topics[topic_json['topic_filter']]
                     topic._app_msg = topic_json['_app_msg']
                     topic._qos_level = topic_json['_qos_level']
+                db.close()
         except OSError:
             pass
         try:
@@ -369,8 +382,10 @@ class Broker():
                             packets[pid] = packet
                         setattr(client, '{}_queue'.format(queue_type), packets)
                     Client.clean_sessions[client.identifier] = client
+                db.close()
         except OSError:
             pass
+        
 
     def start(self, timeout=None):
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -380,28 +395,37 @@ class Broker():
         self._socket.listen(5)
         logging('[SERVER] {} {}'.format(self._ip, str(self._port)))
         logging('... Listenning ... ')
-        while True:
-            conn, addr = self._socket.accept()
-            client = Client(conn, addr)
-            client.session_start()
+        self.load()
+        try:
+            while True:
+                conn, addr = self._socket.accept()
+                client = Client(conn, addr)
+                client.session_start()
+        except OSError:
+            self.stop()
 
     
     def stop(self):
-        logging('[\t\t BROKER CLOSING \t\t]')
+        logging('\n[\t\t BROKER CLOSING \t\t]\n')
         self._socket.close()
         with open('topic', 'w+b') as f:
             db = btree.open(f)
             topics = Client.topics.serialize()
             for i, topic in enumerate(topics):
                 db[str(i).encode()] = topic.encode()
+            db.flush()
+            db.close()
         with open('session', 'w+b') as f:
             db = btree.open(f)
             for cid, client in Client.clean_sessions.items():
-                db[cid] = client.serialize().encode()
+                db[str(cid).encode()] = client.serialize().encode()
+            db.flush()
+            db.close()
 
 
 if __name__ == '__main__':
     import sys
+    print(__name__)
     if len(sys.argv) > 1:
         ip = sys.argv[1]
         logging('Test Broker')

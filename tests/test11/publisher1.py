@@ -58,6 +58,7 @@ def publish():
         msg, 
         retain=True,
         qos=0)
-    client.loop_forever()
+    sleep(5)
+    client.loop_stop()
 
 publish()
