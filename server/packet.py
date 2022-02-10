@@ -1,5 +1,12 @@
-from server.utility import variable_length_encode, utf8_encoded_string
-import server.topic as tp
+import json
+
+
+if __name__ == 'packet':
+    import topic as tp
+    from utility import variable_length_encode, utf8_encoded_string
+elif __name__ == 'server.packet':
+    import server.topic as tp
+    from server.utility import variable_length_encode, utf8_encoded_string
 
 
 # MQTT version
@@ -83,7 +90,6 @@ PACKET_RESPONSE = {
 
 
 class Packet():
-    _packet_identifier = 0
 
     def __init__(self, buffer=b'\x00'):
         # Fixed Header
@@ -153,6 +159,16 @@ class Packet():
         return out
 
 
+    def serialize(self):
+        return json.dumps({
+            '_packet_type': self._packet_type,
+            '_flag_bits': self._flag_bits,
+            '_remain_length': self._remain_length,
+            '_variable_header': self._variable_header,
+            '_payload': self._payload   
+        })
+
+
     def __getattr__(self, attr):
         try:
             return self._variable_header[str(attr)]
@@ -182,10 +198,10 @@ class Packet():
     def connect_request(self, buffer):
         # Variable header
         protocol_name, buffer = utf8_encoded_string(buffer)
-        self._variable_header.update({'protocol_name': protocol_name})
+        self._variable_header.update({'protocol_name': protocol_name.decode('utf-8')})
 
         protocol_level, buffer = buffer[0], buffer[1:]
-        self._variable_header.update({'protocol_level': protocol_level})
+        self._variable_header.update({'protocol_level': protocol_level.decode('utf-8')})
 
 
         connect_flag_bits, buffer = '{0:08b}'.format(buffer[0]), buffer[1:]
@@ -206,67 +222,72 @@ class Packet():
 
         # Payload
         client_identifier, buffer = utf8_encoded_string(buffer)
-        self._payload.update({'client_identifier': client_identifier})
+        self._payload.update({'client_identifier': client_identifier.decode('utf-8')})
 
         if self.will_flag == 1:
-            #  [MQTT-3.1.2-8] - [MQTT-3.1.2-12]
             will_topic, buffer = utf8_encoded_string(buffer)
-            self._payload.update({'will_topic': will_topic})
+            self._payload.update({'will_topic': will_topic.decode('utf-8')})
 
             will_message, buffer = utf8_encoded_string(buffer)
-            self._payload.update({'will_message': will_message})
+            self._payload.update({'will_message': will_message.decode('utf-8')})
 
         if self.username_flag == '1':
             username, buffer = utf8_encoded_string(buffer)
-            self._payload.update({'username': username})
+            self._payload.update({'username': username.decode('utf-8')})
 
             if self.password_flag == '1':
                 password, buffer = utf8_encoded_string(buffer)
-                self._payload.update({'password': password})
+                self._payload.update({'password': password.decode('utf-8')})
         return True
 
 
     def publish_request(self, buffer):
         # Variable Header
         topic_name, buffer = utf8_encoded_string(buffer)
-        self._variable_header.update({'topic_name': topic_name})
+        self._variable_header.update({'topic_name': topic_name.decode('utf-8')})
 
         if self.qos_level != QOS_0:
             packet_identifier, buffer = buffer[0:2], buffer[2:]
-            self._variable_header.update({'packet_identifier': packet_identifier})
+            self._variable_header.update({
+                'packet_identifier': packet_identifier.decode('utf-8')})
 
         # Payload
-        self._payload.update({'application_message': buffer})
+        self._payload.update({'application_message': buffer.decode('utf-8')})
 
 
     def puback_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
-        self._variable_header.update({'packet_identifier': packet_identifier})
+        self._variable_header.update({
+            'packet_identifier': packet_identifier.decode('utf-8')})
 
     
     def pubrel_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
-        self._variable_header.update({'packet_identifier': packet_identifier})
+        self._variable_header.update({
+            'packet_identifier': packet_identifier.decode('utf-8')})
 
 
     def pubrec_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
-        self._variable_header.update({'packet_identifier': packet_identifier})
+        self._variable_header.update({
+            'packet_identifier': packet_identifier.decode('utf-8')})
 
 
     def pubcomp_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
-        self._variable_header.update({'packet_identifier': packet_identifier})
+        self._variable_header.update({
+            'packet_identifier': packet_identifier.decode('utf-8')})
 
 
     def subscribe_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
-        self._variable_header.update({'packet_identifier': packet_identifier})
+        self._variable_header.update({
+            'packet_identifier': packet_identifier.decode('utf-8')})
 
         # Payload
         while buffer:
@@ -274,26 +295,26 @@ class Packet():
             requested_qos, buffer = '{0:08b}'.format(buffer[0]), buffer[1:]
             try:
                 self._payload['topic_filters'].update(
-                    {topic_filter:  requested_qos[6:]}
+                    {topic_filter.decode('utf-8'):  requested_qos[6:]}
                 )
             except KeyError:
                 self._payload.update({'topic_filters': 
-                    {topic_filter:  requested_qos[6:]}
+                    {topic_filter.decode('utf-8'):  requested_qos[6:]}
                 })
 
 
     def unsubscribe_request(self, buffer):
         # Variable Header
         packet_identifier, buffer = buffer[0:2], buffer[2:]
-        self._variable_header.update({'packet_identifier': packet_identifier})
+        self._variable_header.update({'packet_identifier': packet_identifier.decode('utf-8')})
 
         # Payload
         while buffer:
             topic_filter, buffer = utf8_encoded_string(buffer)
             try:
-                self._payload['topic_filters'].append(topic_filter)
+                self._payload['topic_filters'].append(topic_filter.decode('utf-8'))
             except KeyError:
-                self._payload.update({'topic_filters': [topic_filter]})
+                self._payload.update({'topic_filters': [topic_filter.decode('utf-8')]})
 
     
     def pingreq_request(self, buffer):
@@ -328,7 +349,7 @@ class Packet():
         # Fixed Header
         fixed_header = (PUBACK << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
-        packet_identifier = self.packet_identifier
+        packet_identifier = self.packet_identifier.encode()
         return fixed_header + remain_length + packet_identifier
 
 
@@ -337,7 +358,7 @@ class Packet():
         # Fixed Header
         fixed_header = (PUBREC << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
-        packet_identifier = self.packet_identifier
+        packet_identifier = self.packet_identifier.encode()
         return fixed_header + remain_length + packet_identifier
 
 
@@ -346,7 +367,7 @@ class Packet():
         # Fixed Header
         fixed_header = (PUBREL << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
-        packet_identifier = self.packet_identifier
+        packet_identifier = self.packet_identifier.encode()
         return fixed_header + remain_length + packet_identifier
 
 
@@ -355,7 +376,7 @@ class Packet():
         # Fixed Header
         fixed_header = (PUBCOMP << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
-        packet_identifier = self.packet_identifier
+        packet_identifier = self.packet_identifier.encode()
         return fixed_header + remain_length + packet_identifier
 
 
@@ -364,7 +385,7 @@ class Packet():
         # Fixed Header
         fixed_header = (SUBACK << 4 | RESERVED).to_bytes(1, 'big')
         # Variable Header
-        packet_identifier = self.packet_identifier
+        packet_identifier = self.packet_identifier.encode()
         # Payload
         return_code = b''
         for _, qos_level in self.topic_filters.items():
@@ -381,11 +402,12 @@ class Packet():
             fixed_header &= 0xf7
         fixed_header = fixed_header.to_bytes(1, 'big')
         # Variable Header
-        variable_header = len(self.topic_name).to_bytes(2, 'big') + self.topic_name
+        topic_name = self.topic_name.encode()
+        variable_header = len(topic_name).to_bytes(2, 'big') + topic_name
         if self.qos_level != QOS_0:
-            variable_header += self.packet_identifier
+            variable_header += self.packet_identifier.encode()
         # Payload
-        payload = self.application_message
+        payload = self.application_message.encode()
 
         remain_length = variable_length_encode(
             len(variable_header + payload)).to_bytes(1, 'big')
@@ -398,7 +420,7 @@ class Packet():
         fixed_header = (UNSUBACK << 4 | RESERVED).to_bytes(1, 'big')
         remain_length = variable_length_encode(2).to_bytes(1, 'big')
         # Variable Header
-        packet_identifier = self.packet_identifier
+        packet_identifier = self.packet_identifier.encode()
         return fixed_header + remain_length + packet_identifier
 
     

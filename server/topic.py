@@ -1,4 +1,11 @@
-import server.packet as pk
+import json
+
+
+if __name__ == 'topic':
+    import packet as pk
+elif __name__ == 'server.topic':
+    import server.packet as pk
+
 
 class Topic():
     _max_qos = pk.QOS_2
@@ -48,13 +55,12 @@ class Topic():
         )
         packet.flag_bits = int.from_bytes(pk.QOS_CODE[qos_level], 'big') << 1
         packet.flag_bits = packet.flag_bits | 1
-        packet.variable_header.update({'topic_name': self.topic_filter})
-        packet.payload.update({'application_message': self._app_msg})
+        packet.variable_header.update({'topic_name': self.topic_filter.encode()})
+        packet.payload.update({'application_message': self._app_msg.encode()})
         return packet
 
 
     def add(self, client, qos):
-        # [MQTT-3.3.1-8]
         self._subscription.add(client)
         try:
             qos = max(self._subscriber_qos[client.identifier], qos)
@@ -74,7 +80,7 @@ class Topic():
                 packet.flag_bits = packet.flag_bits | 0x08
                 client.store_message(packet, 'sent')
 
-        if self.name == b'#':
+        if self.name == '#':
             self._parent._subscription.add(client)
             try:
                 qos = max(self._parent._subscriber_qos[client.identifier], qos)
@@ -96,7 +102,7 @@ class Topic():
     
 
     def pop(self, client):
-        if  self._parent and self.name == b'#':
+        if  self._parent and self.name == '#':
             self._parent._subscription.remove(client.identifier)
             self._parent._subscriber_qos.pop(client.identifier)
 
@@ -114,11 +120,11 @@ class Topic():
     @property
     def topic_filter(self):
         if self._parent:
-            buffer = self._parent.topic_filter
+            buffer = self._parent.topic_filter.decode('utf-8')
             if buffer:
                 buffer += '/'
             buffer += self._name.decode('utf-8')
-            return buffer
+            return buffer.encode()
         else:
             return ''
 
@@ -132,7 +138,7 @@ class Topic():
             if topic_levels[0] not in self._children:
                 self._children[topic_levels[0]] = Topic(
                     topic_name=topic_levels[0], parent=self)
-            return self._children[topic_levels[0]][b'/'.join(topic_levels[1:])]
+            return self._children[topic_levels[0]]['/'.join(topic_levels[1:])]
         else:
             try:
                 return self._children[topic_levels[0]]
@@ -149,16 +155,16 @@ class Topic():
                 self._children[topic_levels[0]] = Topic(
                     topic_name=topic_levels[0], parent=self)
             try:
-                self._children[topic_levels[0]][b'/'.join(topic_levels[1:])] = packet
+                self._children[topic_levels[0]]['/'.join(topic_levels[1:])] = packet
             except KeyError:
                 pass
             try:
-                if b'#' in self._children[topic_levels[0]]:
-                    self._children[topic_levels[0]][b'#'] = packet
+                if '#' in self._children[topic_levels[0]]:
+                    self._children[topic_levels[0]]['#'] = packet
             except KeyError:
                 pass
             try:
-                self._children[b'+'][b'/'.join(topic_levels[1:])] = packet
+                self._children['+']['/'.join(topic_levels[1:])] = packet
             except KeyError:
                 pass
         else:
@@ -205,21 +211,35 @@ class Topic():
 
     @staticmethod
     def separator(topic):
-        levels = topic.split(b'/')
-        if topic[0] == b'/':
-            levels[0] = b'/' + levels[0]
-        if topic[-1] == b'/':
-            levels[-1] = b'/' + levels[-1]
+        levels = topic.split('/')
+        if topic[0] == '/':
+            levels[0] = '/' + levels[0]
+        if topic[-1] == '/':
+            levels[-1] = '/' + levels[-1]
         return levels
 
 
     def __str__(self):
-        buffer = '\n[ {0} ]'.format(self.topic_filter)
+        buffer = '\n[ {} ]'.format(self.topic_filter)
         if self._subscription:
             for subscriber in self._subscription:
-                buffer += '\n\t> {0} : {1}'.format(subscriber, self._subscriber_qos[subscriber.identifier])
+                buffer += '\n\t> {} : {}'.format(subscriber, self._subscriber_qos[subscriber.identifier])
         if self.retain:
-            buffer += '\n\t> retain msg: {0}, QoS: {1}'.format(self._app_msg, self._qos_level)
+            buffer += '\n\t> retain msg: {}, QoS: {}'.format(self._app_msg, self._qos_level)
         for _, topic in self._children.items():
             buffer += str(topic)
         return buffer
+
+
+    def serialize(self):
+        topics = list()
+        if self.retain:
+            _dict = {
+                'topic_filter': self.topic_filter,
+                '_app_msg': self._app_msg,
+                '_qos_level': self._qos_level
+            }
+            topics.append(json.dumps(_dict))
+        for _, topic in self._children.items():
+            topics += topic.serialize()
+        return topics

@@ -1,10 +1,18 @@
+from http import client
 import socket
 import _thread
 import time
 import re
-import server.topic as tp
-import server.packet as pk
-from server.utility import MQTTProtocolError, variable_length_decode, current_time
+import json
+import btree
+if __name__ == 'server.broker':
+    import server.topic as tp
+    import server.packet as pk
+    from server.utility import MQTTProtocolError, variable_length_decode, current_time
+elif __name__ == '__main__':
+    import topic as tp
+    import packet as pk
+    from utility import MQTTProtocolError, variable_length_decode, current_time
 
 
 class Client():
@@ -59,27 +67,45 @@ class Client():
             else 1).to_bytes(2, 'big')
 
 
+    def serialize(self):
+        return json.dumps({
+            '_client_id': self._client_id,
+            '_packet_identifier': self._packet_identifier,
+            '_subscriptions': self._subscriptions,
+            '_sent_queue': {
+                pk_id: packet.serialize() for pk_id, packet in 
+                self._sent_queue
+            },
+            '_ack_queue': {
+                pk_id: packet.serialize() 
+                for pk_id, packet in self._ack_queue
+            },
+            '_pending_queue': {
+                pk_id: packet.serialize() 
+                for pk_id, packet in self._pending_queue
+            },
+        })
+
+
     def clean_session_handler(self, packet):
         if packet.clean_session == '0':
             if self._client_id not in Client.clean_sessions:
                 Client.clean_sessions[self._client_id] = self
             else:
                 old_session = Client.clean_sessions[self._client_id]
-                # reset session state
                 self._subscriptions = old_session._subscriptions
-                self._sent_queue = old_session._sent_queue
-                self._pending_queue = old_session._pending_queue
-                self._ack_queue = old_session._ack_queue
-                # re-send uncomplete qos 1, 2
                 for topic_filter, qos in self._subscriptions.items():
                     topic = Client.topics[topic_filter]
                     topic.add(self, qos)
-                for _, sent in old_session._sent_queue.items():
+                for pk_id, sent in old_session._sent_queue.items():
                     self._conn.write(sent.publish)
-                for _, pending in old_session._pending_queue.items():
+                    self._sent_queue[pk_id] = sent
+                for pk_id, pending in old_session._pending_queue.items():
                     self._conn.write(pending.pubrec)
-                for _, ack in old_session._ack_queue.items():
+                    self._pending_queue[pk_id] = pending
+                for pk_id, ack in old_session._ack_queue.items():
                     self._conn.write(ack.pubrel)
+                    self._ack_queue[pk_id] = ack
                 Client.clean_sessions.pop(self._client_id)
                 del old_session
                 Client.clean_sessions[self._client_id] = self
@@ -110,10 +136,18 @@ class Client():
 
 
     def log(self, packet):
-        print('\n<----- Client ID:\t{0} \t----->'.format(str(self.identifier, "utf-8")))
-        # print('<----- Object at:\t{0} \t----->'.format(hex(id(self))))
-        # print('<----- Thread number:\t{0} \t----->'.format(_thread.get_ident()))
-        print(packet)
+        print('\n<----- Client ID:\t{} \t----->'.format(str(self.identifier, "utf-8")))
+        print('{}'.format(str(packet)))
+        print('===== SERVER LOGS =====')
+        print('<------ Topics -->', end='')
+        print('{}'.format(str(Client.topics)))
+        print('<----- Clean Session --->')
+        for client in Client.clean_sessions:
+            print('{}'.format(str(client)))
+        print('<----- Session --------->')
+        for client in Client.sessions:
+            print('{}'.format(str(client)))
+        print('=======================')
 
     
     def error_handler(self, e, packet):
@@ -131,9 +165,8 @@ class Client():
         
 
     def disconnect(self, cause):
-        print('\n*** Closing Connection From {0} ***'.format(self.identifier))
-        print('Cause: {0}'.format(cause))
-        print('Thread {0}'.format(_thread.get_ident()))
+        print('\n*** Closing Connection From {} ***'.format(self.identifier))
+        print('Cause: {}'.format(cause))
         print('Remain Time: {0}'.format(self.remaining_time))
         print('Sent Queue')
         for _, packet in self._sent_queue.items():
@@ -218,7 +251,7 @@ class Client():
             self.clean_session_handler(packet)
             self.keep_alive_setup(packet)
 
-        elif pk.PUBLISH == packet.packet_type and pk.QOS_1 == packet.qos_level:
+        elif pk.PUBLISH == packet.packet_type and pk.QOS_2 != packet.qos_level:
             Client.topics[packet.topic_name] = packet
 
         elif pk.PUBACK == packet.packet_type:
@@ -270,44 +303,71 @@ class Client():
             self._conn.write(reponse)
 
 
-class Server():
+class Broker():
     def __init__(self, ip, port='1883'):
         self._ip = ip
         self._port = port
 
-        ADDR = socket.getaddrinfo(self._ip, self._port)[0][-1]
-        self._server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._server.bind(ADDR)
+
+    def load(self):
+        try:
+            with open('topic', 'r+b') as f:
+                db = btree.open(f)
+                for i in db:
+                    topic_json = json.loads(db[i].decode('utf-8'))
+                    topic = Client.topics[topic_json['topic_filter']]
+                    topic._app_msg = topic_json['_app_msg']
+                    topic._qos_level = topic_json['_qos_level']
+        except OSError:
+            pass
+        try:
+            with open('session', 'r+b') as f:
+                db = btree.open(f)
+                for cid in db:
+                    client_json = json.loads(db[cid].decode('utf-8'))
+                    client = Client(None, None)
+                    client._client_id = client_json['_client_id']
+                    client._subscriptions = client_json['_subscriptions']
+                    for queue_type in ['_sent', 'pending', '_ack']:
+                        queue = client_json['{}_queue'.format(queue_type)]
+                        packets = dict()
+                        for pid in queue:
+                            packet = pk.Packet()
+                            packet_json = json.loads(queue[pid])
+                            for attr in packet_json:
+                                setattr(packet, attr, packet_json[attr])
+                            packets[pid] = packet
+                        setattr(client, '{}_queue'.format(queue_type), packets)
+                    Client.clean_sessions[client.identifier] = client
+        except OSError:
+            pass
+
+    def start(self, timeout=None):
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._socket.bind(socket.getaddrinfo(self._ip, self._port)[0][-1])
+        self._socket.settimeout(timeout)
+        self._socket.listen(5)
         print('[SERVER]', self._ip, str(self._port))
-
-
-    def loop_forever(self):
-        self._server.settimeout(24*60*60.0)
-        self._server.listen(10)
         print('... Listenning ... ')
-
         while True:
-            conn, addr = self._server.accept()
+            conn, addr = self._socket.accept()
             client = Client(conn, addr)
             client.session_start()
 
-
-    def log(self, period=10):
-        def worker():
-            while True:
-                print('\n===== SERVER LOGS =====')
-                print('<------ Topics -->', end='')
-                print(Client.topics)
-                print('<----- Clean Session --->')
-                for client in Client.clean_sessions:
-                    print(client)
-                print('<----- Session --------->')
-                for client in Client.sessions:
-                    print(client)
-                print('=======================')
-                time.sleep(period)
-        _thread.start_new_thread(worker, ())
+    
+    def stop(self):
+        print('[\t\t BROKER CLOSING \t\t]')
+        self._socket.close()
+        with open('topic', 'w+b') as f:
+            db = btree.open(f)
+            topics = Client.topics.serialize()
+            for i, topic in enumerate(topics):
+                db[str(i).encode()] = topic.encode()
+        with open('session', 'w+b') as f:
+            db = btree.open(f)
+            for cid, client in Client.clean_sessions().items():
+                db[cid] = client.serialize().encode()
 
 
 if __name__ == '__main__':
@@ -315,10 +375,10 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         ip = sys.argv[1]
         print('Test Broker')
-        server = Server(ip)
-        # server.log(2)
-        server.loop_forever()
-        server._server.close()
-        print('Server close')
+        server = Broker(ip)
+        try:
+            server.start()
+        except KeyboardInterrupt:
+            server.stop()
     else:
         print('Missing broker IP address')
