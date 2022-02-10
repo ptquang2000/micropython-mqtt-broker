@@ -201,7 +201,7 @@ class Packet():
         self._variable_header.update({'protocol_name': protocol_name.decode('utf-8')})
 
         protocol_level, buffer = buffer[0], buffer[1:]
-        self._variable_header.update({'protocol_level': protocol_level.decode('utf-8')})
+        self._variable_header.update({'protocol_level': protocol_level})
 
 
         connect_flag_bits, buffer = '{0:08b}'.format(buffer[0]), buffer[1:]

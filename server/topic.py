@@ -55,8 +55,8 @@ class Topic():
         )
         packet.flag_bits = int.from_bytes(pk.QOS_CODE[qos_level], 'big') << 1
         packet.flag_bits = packet.flag_bits | 1
-        packet.variable_header.update({'topic_name': self.topic_filter.encode()})
-        packet.payload.update({'application_message': self._app_msg.encode()})
+        packet.variable_header.update({'topic_name': self.topic_filter})
+        packet.payload.update({'application_message': self._app_msg})
         return packet
 
 
@@ -120,18 +120,18 @@ class Topic():
     @property
     def topic_filter(self):
         if self._parent:
-            buffer = self._parent.topic_filter.decode('utf-8')
+            buffer = self._parent.topic_filter
             if buffer:
                 buffer += '/'
-            buffer += self._name.decode('utf-8')
-            return buffer.encode()
+            buffer += self._name
+            return buffer
         else:
             return ''
 
 
     def __getitem__(self, topic_filter):
-        if not isinstance(topic_filter, bytes):
-            raise KeyError
+        if not isinstance(topic_filter, str):
+            raise KeyError(topic_filter)
 
         topic_levels = self.separator(topic_filter)
         if topic_levels[1:]:

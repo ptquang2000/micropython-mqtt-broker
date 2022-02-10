@@ -1,7 +1,5 @@
-from http import client
 import socket
 import _thread
-import time
 import re
 import json
 import btree
@@ -14,7 +12,13 @@ elif __name__ == '__main__':
     import packet as pk
     from utility import MQTTProtocolError, variable_length_decode, current_time
 
+g_lock = _thread.allocate_lock()
 
+def logging(buffer):
+    g_lock.acquire()
+    with open('log', 'a') as f:
+        f.write(buffer)
+    g_lock.release()
 class Client():
     clean_sessions = dict()
     sessions = dict()
@@ -62,9 +66,9 @@ class Client():
     
     def new_packet_id(self):
         self._packet_identifier += 1
-        return (self._packet_identifier
+        return str(self._packet_identifier
             if self._packet_identifier < 16 ** 2
-            else 1).to_bytes(2, 'big')
+            else 1)
 
 
     def serialize(self):
@@ -138,6 +142,16 @@ class Client():
     def log(self, packet):
         print('\n<----- Client ID:\t{} \t----->'.format(str(self.identifier, "utf-8")))
         print('{}'.format(str(packet)))
+        print('Sent Queue')
+        for _, packet in self._sent_queue.items():
+            print(packet)
+        print('Pending Queue')
+        for _, packet in self._pending_queue.items():
+            print(packet)
+        print('Acknownledge Queue')
+        for _, packet in self._ack_queue.items():
+            print(packet)
+        print('*********************************\n')
         print('===== SERVER LOGS =====')
         print('<------ Topics -->', end='')
         print('{}'.format(str(Client.topics)))
@@ -214,13 +228,23 @@ class Client():
 
 
     def store_message(self, packet, state):
+        print('\n{} STORE PACKET {} {} TO {}\n'.format(
+            self.identifier,
+            pk.PACKET_NAME[packet.packet_type],
+            packet.packet_identifier,
+            state))
         queue = getattr(self, '_{0}_queue'.format(state))
         queue[packet.packet_identifier] = packet
 
 
-    def discard_message(self, packet_identifier, state):
+    def discard_message(self, packet, state):
+        print('\n{} DISCARD PACKET {} {} FROM {}\n'.format(
+            self.identifier,
+            pk.PACKET_NAME[packet.packet_type],
+            packet.packet_identifier,
+            state))
         queue = getattr(self, '_{0}_queue'.format(state))
-        queue.pop(packet_identifier)
+        queue.pop(packet.packet_identifier)
 
 
     def __lshift__(self, packet):
@@ -246,7 +270,7 @@ class Client():
                 raise MQTTProtocolError('MQTT-3.1.2-2')
             if (len(packet.client_identifier) > 23 or 
                 not re.match('[0-9a-zA-Z]+$', 
-                    packet.client_identifier.decode('UTF-8'))):
+                    packet.client_identifier)):
                 raise MQTTProtocolError('MQTT-3.1.3-5')
             self.clean_session_handler(packet)
             self.keep_alive_setup(packet)
@@ -255,22 +279,22 @@ class Client():
             Client.topics[packet.topic_name] = packet
 
         elif pk.PUBACK == packet.packet_type:
-            self.discard_message(packet.packet_identifier, 'sent')
+            self.discard_message(packet, 'sent')
 
         elif pk.PUBLISH == packet.packet_type and pk.QOS_2 == packet.qos_level:
             self.store_message(packet, 'pending')
 
         elif pk.PUBREC == packet.packet_type:
-            self.discard_message(packet.packet_identifier, 'sent')
+            self.discard_message(packet, 'sent')
             self.store_message(packet, 'ack')
 
         elif pk.PUBREL == packet.packet_type:
             publish_packet = self._pending_queue[packet.packet_identifier]
             Client.topics[publish_packet.topic_name] = publish_packet
-            self.discard_message(packet.packet_identifier, 'pending')
+            self.discard_message(packet, 'pending')
 
         elif pk.PUBCOMP == packet.packet_type:
-            self.discard_message(packet.packet_identifier, 'ack')
+            self.discard_message(packet, 'ack')
 
         elif pk.SUBSCRIBE == packet.packet_type:
             for topic_filter, qos in packet.topic_filters.items():
@@ -300,6 +324,7 @@ class Client():
         except KeyError:
             pass
         else:
+            print('\nSENDING {} TO CLIENT WITH ID {}\n'.format(pk.PACKET_RESPONSE[packet_name], self.identifier))
             self._conn.write(reponse)
 
 
