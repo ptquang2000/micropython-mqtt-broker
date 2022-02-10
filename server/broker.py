@@ -416,7 +416,7 @@ class Broker():
             topics = Client.topics.serialize()
             for topic in topics:
                 topic_filter = json.loads(topic)['topic_filter'].encode()
-                db[topic_filter].encode()] = topic.encode()
+                db[topic_filter.encode()] = topic.encode()
             db.flush()
             db.close()
         with open('session', 'w+b') as f:
