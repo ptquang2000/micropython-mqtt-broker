@@ -10,8 +10,7 @@ main.py is used to start server
 |         | P1 publish house/gargage r1 q0 'on'
 |         | P1 publish house/room/main-light r1 q1 'on'
 |         | P1 publish house/room/side-light r1 q2 'on'
-|         | P1 exit   
-|         | S1,S2 disconnect
+|         | S1,S2,P1 disconnect
 | 2*      | Server Close
 |         | Server start
 | 6       | S1,P1 connect clean_session=False

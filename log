@@ -1,149 +1,4 @@
 
-<----- Client ID:	subscriber1 	----->
-[CONNECT]
-[Fixed Header]
-	packet type: 1
-	flags: 0000
-[Variable Header]
-	will flag: 	0
-	keep alive: 	60
-	reserved: 	0
-	session present: 	0
-	return code: 	b'\x00'
-	will qos: 	00
-	protocol level: 	4
-	protocol name: 	MQTT
-	username flag: 	0
-	will retain: 	0
-	clean session: 	0
-	password flag: 	0
-[Payload]
-	client identifier: 	subscriber1
-Sent Queue
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-SENDING CONNACK TO CLIENT WITH ID subscriber1
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-<----- Clean Session --->
-subscriber1
-<----- Session --------->
-<----- Client ID:	subscriber1 	----->
-[SUBSCRIBE]
-[Fixed Header]
-	packet type: 8
-	flags: 0010
-[Variable Header]
-	packet identifier: 	1
-[Payload]
-	topic filters:
-		house/room/side-light : 10
-		house/gargage : 00
-		house/room/main-light : 01
-Sent Queue
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-SENDING SUBACK TO CLIENT WITH ID subscriber1
-
-*** Closing Connection From subscriber1 ***
-Cause: [Errno 104] ECONNRESET
-Remain Time: 90
-Sent Queue
-Pending Queue
-Acknownledge Queue
-*********************************
-
-<----- Client ID:	subscriber2 	----->
-[CONNECT]
-[Fixed Header]
-	packet type: 1
-	flags: 0000
-[Variable Header]
-	will flag: 	0
-	keep alive: 	60
-	reserved: 	0
-	session present: 	0
-	return code: 	b'\x00'
-	will qos: 	00
-	protocol level: 	4
-	protocol name: 	MQTT
-	username flag: 	0
-	will retain: 	0
-	clean session: 	0
-	password flag: 	0
-[Payload]
-	client identifier: 	subscriber2
-Sent Queue
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-SENDING CONNACK TO CLIENT WITH ID subscriber2
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-<----- Clean Session --->
-subscriber1
-subscriber2
-<----- Session --------->
-<----- Client ID:	subscriber2 	----->
-[SUBSCRIBE]
-[Fixed Header]
-	packet type: 8
-	flags: 0010
-[Variable Header]
-	packet identifier: 	1
-[Payload]
-	topic filters:
-		house/room/main-light : 01
-		house/room/side-light : 10
-Sent Queue
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-SENDING SUBACK TO CLIENT WITH ID subscriber2
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-<----- Clean Session --->
-subscriber1
-subscriber2
-<----- Session --------->
-<----- Client ID:	subscriber2 	----->
-[DISCONNECT]
-[Fixed Header]
-	packet type: 14
-	flags: 0000
-[Variable Header]
-[Payload]
-Sent Queue
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-*** Closing Connection From subscriber2 ***
-Cause: Client Disconnect
-Remain Time: 90
-Sent Queue
-Pending Queue
-Acknownledge Queue
-*********************************
-
 <----- Client ID:	publisher1 	----->
 [CONNECT]
 [Fixed Header]
@@ -153,7 +8,7 @@ Acknownledge Queue
 	will flag: 	0
 	keep alive: 	60
 	reserved: 	0
-	session present: 	0
+	session present: 	1
 	return code: 	b'\x00'
 	will qos: 	00
 	protocol level: 	4
@@ -174,6 +29,12 @@ SENDING CONNACK TO CLIENT WITH ID publisher1
 ========= TOPIC LOGS ==========
 <------ Topics -->
 [  ]
+[ house ]
+[ house/room ]
+[ house/room/main-light ]
+	> retain msg: on, QoS: 01
+[ house/garage ]
+	> retain msg: on, QoS: 00
 <----- Clean Session --->
 subscriber2
 subscriber1
@@ -187,7 +48,7 @@ publisher1
 [Variable Header]
 	topic name: 	house/garage
 [Payload]
-	application message: 	on
+	application message: 	off
 Sent Queue
 Pending Queue
 Acknownledge Queue
@@ -197,583 +58,11 @@ Acknownledge Queue
 <------ Topics -->
 [  ]
 [ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-<----- Client ID:	publisher1 	----->
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 0011
-[Variable Header]
-	topic name: 	house/room/main-light
-	packet identifier: 	2
-[Payload]
-	application message: 	on
-Sent Queue
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-SENDING PUBACK TO CLIENT WITH ID publisher1
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
 [ house/room ]
 [ house/room/main-light ]
 	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-<----- Client ID:	publisher1 	----->
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 0101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	3
-[Payload]
-	application message: 	on
-Sent Queue
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-publisher1 STORE PACKET PUBLISH 3 TO pending
-
-SENDING PUBREC TO CLIENT WITH ID publisher1
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
 [ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/main-light ]
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-<----- Client ID:	publisher1 	----->
-[PUBREL]
-[Fixed Header]
-	packet type: 6
-	flags: 0010
-[Variable Header]
-	packet identifier: 	3
-[Payload]
-Sent Queue
-Pending Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 0101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	3
-[Payload]
-	application message: 	on
-Acknownledge Queue
-<------------------------------>
-
-publisher1 DISCARD PACKET PUBREL 3 FROM pending
-
-SENDING PUBCOMP TO CLIENT WITH ID publisher1
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-subscriber2 STORE PACKET PUBLISH 1 TO sent
-
-subscriber2 STORE PACKET PUBLISH 2 TO sent
-
-<----- Client ID:	subscriber2 	----->
-[CONNECT]
-[Fixed Header]
-	packet type: 1
-	flags: 0000
-[Variable Header]
-	will flag: 	0
-	keep alive: 	60
-	reserved: 	0
-	session present: 	1
-	return code: 	b'\x00'
-	will qos: 	00
-	protocol level: 	4
-	protocol name: 	MQTT
-	username flag: 	0
-	will retain: 	0
-	clean session: 	0
-	password flag: 	0
-[Payload]
-	client identifier: 	subscriber2
-Sent Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	2
-[Payload]
-	application message: 	on
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1011
-[Variable Header]
-	topic name: 	house/room/main-light
-	packet identifier: 	1
-[Payload]
-	application message: 	on
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-SENDING CONNACK TO CLIENT WITH ID subscriber2
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-<----- Client ID:	subscriber2 	----->
-[PUBACK]
-[Fixed Header]
-	packet type: 4
-	flags: 0000
-[Variable Header]
-	packet identifier: 	1
-[Payload]
-Sent Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	2
-[Payload]
-	application message: 	on
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1011
-[Variable Header]
-	topic name: 	house/room/main-light
-	packet identifier: 	1
-[Payload]
-	application message: 	on
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-subscriber2 DISCARD PACKET PUBACK 1 FROM sent
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-<----- Client ID:	subscriber2 	----->
-[PUBREC]
-[Fixed Header]
-	packet type: 5
-	flags: 0000
-[Variable Header]
-	packet identifier: 	2
-[Payload]
-Sent Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	2
-[Payload]
-	application message: 	on
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-subscriber2 DISCARD PACKET PUBREC 2 FROM sent
-
-subscriber2 STORE PACKET PUBREC 2 TO ack
-
-SENDING PUBREL TO CLIENT WITH ID subscriber2
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-<----- Client ID:	subscriber2 	----->
-[PUBCOMP]
-[Fixed Header]
-	packet type: 7
-	flags: 0000
-[Variable Header]
-	packet identifier: 	2
-[Payload]
-Sent Queue
-Pending Queue
-Acknownledge Queue
-[PUBREC]
-[Fixed Header]
-	packet type: 5
-	flags: 0000
-[Variable Header]
-	packet identifier: 	2
-[Payload]
-<------------------------------>
-
-subscriber2 DISCARD PACKET PUBCOMP 2 FROM ack
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-*** Closing Connection From publisher1 ***
-Cause: [Errno 11] EAGAIN
-Remain Time: 87
-Sent Queue
-Pending Queue
-Acknownledge Queue
-*********************************
-
-<----- Client ID:	publisher1 	----->
-[CONNECT]
-[Fixed Header]
-	packet type: 1
-	flags: 0000
-[Variable Header]
-	will flag: 	0
-	keep alive: 	60
-	reserved: 	0
-	session present: 	1
-	return code: 	b'\x00'
-	will qos: 	00
-	protocol level: 	4
-	protocol name: 	MQTT
-	username flag: 	0
-	will retain: 	0
-	clean session: 	0
-	password flag: 	0
-[Payload]
-	client identifier: 	publisher1
-Sent Queue
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-SENDING CONNACK TO CLIENT WITH ID publisher1
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-*** Closing Connection From subscriber2 ***
-Cause: [Errno 11] EAGAIN
-Remain Time: 87
-Sent Queue
-Pending Queue
-Acknownledge Queue
-*********************************
-
-subscriber2 STORE PACKET PUBLISH 1 TO sent
-
-subscriber2 STORE PACKET PUBLISH 2 TO sent
-
-<----- Client ID:	subscriber2 	----->
-[CONNECT]
-[Fixed Header]
-	packet type: 1
-	flags: 0000
-[Variable Header]
-	will flag: 	0
-	keep alive: 	60
-	reserved: 	0
-	session present: 	1
-	return code: 	b'\x00'
-	will qos: 	00
-	protocol level: 	4
-	protocol name: 	MQTT
-	username flag: 	0
-	will retain: 	0
-	clean session: 	0
-	password flag: 	0
-[Payload]
-	client identifier: 	subscriber2
-Sent Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	2
-[Payload]
-	application message: 	on
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1011
-[Variable Header]
-	topic name: 	house/room/main-light
-	packet identifier: 	1
-[Payload]
-	application message: 	on
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-SENDING CONNACK TO CLIENT WITH ID subscriber2
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-<----- Client ID:	subscriber2 	----->
-[PUBACK]
-[Fixed Header]
-	packet type: 4
-	flags: 0000
-[Variable Header]
-	packet identifier: 	1
-[Payload]
-Sent Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	2
-[Payload]
-	application message: 	on
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1011
-[Variable Header]
-	topic name: 	house/room/main-light
-	packet identifier: 	1
-[Payload]
-	application message: 	on
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-subscriber2 DISCARD PACKET PUBACK 1 FROM sent
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-<----- Client ID:	subscriber2 	----->
-[PUBREC]
-[Fixed Header]
-	packet type: 5
-	flags: 0000
-[Variable Header]
-	packet identifier: 	2
-[Payload]
-Sent Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	2
-[Payload]
-	application message: 	on
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-subscriber2 DISCARD PACKET PUBREC 2 FROM sent
-
-subscriber2 STORE PACKET PUBREC 2 TO ack
-
-SENDING PUBREL TO CLIENT WITH ID subscriber2
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber2
-subscriber1
-publisher1
-<----- Session --------->
-<----- Client ID:	subscriber2 	----->
-[PUBCOMP]
-[Fixed Header]
-	packet type: 7
-	flags: 0000
-[Variable Header]
-	packet identifier: 	2
-[Payload]
-Sent Queue
-Pending Queue
-Acknownledge Queue
-[PUBREC]
-[Fixed Header]
-	packet type: 5
-	flags: 0000
-[Variable Header]
-	packet identifier: 	2
-[Payload]
-<------------------------------>
-
-subscriber2 DISCARD PACKET PUBCOMP 2 FROM ack
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
+	> retain msg: off, QoS: 00
 <----- Clean Session --->
 subscriber2
 subscriber1
@@ -810,21 +99,19 @@ SENDING CONNACK TO CLIENT WITH ID subscriber2
 <------ Topics -->
 [  ]
 [ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
 [ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
 [ house/room/main-light ]
-	> subscriber2 : 01
 	> retain msg: on, QoS: 01
+[ house/garage ]
+	> retain msg: off, QoS: 00
 <----- Clean Session --->
 subscriber1
 publisher1
 <----- Session --------->
 subscriber2
-<----- Client ID:	publisher1 	----->
+subscriber1 STORE PACKET PUBLISH 1 TO sent
+
+<----- Client ID:	subscriber1 	----->
 [CONNECT]
 [Fixed Header]
 	packet type: 1
@@ -843,27 +130,159 @@ subscriber2
 	clean session: 	0
 	password flag: 	0
 [Payload]
-	client identifier: 	publisher1
+	client identifier: 	subscriber1
 Sent Queue
+[PUBLISH]
+[Fixed Header]
+	packet type: 3
+	flags: 1011
+[Variable Header]
+	topic name: 	house/room/main-light
+	packet identifier: 	1
+[Payload]
+	application message: 	on
 Pending Queue
 Acknownledge Queue
 <------------------------------>
 
-SENDING CONNACK TO CLIENT WITH ID publisher1
+SENDING CONNACK TO CLIENT WITH ID subscriber1
 
 ========= TOPIC LOGS ==========
 <------ Topics -->
 [  ]
 [ house ]
-[ house/garage ]
-	> retain msg: on, QoS: 00
+[ house/gargage ]
+	> subscriber1 : 00
 [ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
 [ house/room/main-light ]
-	> subscriber2 : 01
+	> subscriber1 : 01
 	> retain msg: on, QoS: 01
+[ house/room/side-light ]
+	> subscriber1 : 10
+[ house/garage ]
+	> retain msg: off, QoS: 00
+<----- Clean Session --->
+subscriber1
+publisher1
+<----- Session --------->
+subscriber2
+<----- Client ID:	publisher1 	----->
+[PUBLISH]
+[Fixed Header]
+	packet type: 3
+	flags: 0011
+[Variable Header]
+	topic name: 	house/room/main-light
+	packet identifier: 	5
+[Payload]
+	application message: 	off
+Sent Queue
+Pending Queue
+Acknownledge Queue
+<------------------------------>
+
+subscriber1 STORE PACKET PUBLISH 2 TO sent
+
+SENDING PUBACK TO CLIENT WITH ID publisher1
+
+*** Closing Connection From publisher1 ***
+Cause: 32
+Remain Time: 90
+<----- Client ID:	subscriber1 	----->
+Sent Queue
+Pending Queue
+Acknownledge Queue
+*********************************
+
+[PUBACK]
+[Fixed Header]
+	packet type: 4
+	flags: 0000
+[Variable Header]
+	packet identifier: 	1
+[Payload]
+Sent Queue
+[PUBLISH]
+[Fixed Header]
+	packet type: 3
+	flags: 0011
+[Variable Header]
+	topic name: 	house/room/main-light
+	packet identifier: 	5
+[Payload]
+	application message: 	off
+[PUBLISH]
+[Fixed Header]
+	packet type: 3
+	flags: 1011
+[Variable Header]
+	topic name: 	house/room/main-light
+	packet identifier: 	1
+[Payload]
+	application message: 	on
+Pending Queue
+Acknownledge Queue
+<------------------------------>
+
+subscriber1 DISCARD PACKET PUBACK 1 FROM sent
+
+========= TOPIC LOGS ==========
+<------ Topics -->
+[  ]
+[ house ]
+[ house/gargage ]
+	> subscriber1 : 00
+[ house/room ]
+[ house/room/main-light ]
+	> subscriber1 : 01
+	> retain msg: off, QoS: 01
+[ house/room/side-light ]
+	> subscriber1 : 10
+[ house/garage ]
+	> retain msg: off, QoS: 00
+<----- Clean Session --->
+subscriber1
+publisher1
+<----- Session --------->
+subscriber2
+<----- Client ID:	subscriber1 	----->
+[PUBACK]
+[Fixed Header]
+	packet type: 4
+	flags: 0000
+[Variable Header]
+	packet identifier: 	2
+[Payload]
+Sent Queue
+[PUBLISH]
+[Fixed Header]
+	packet type: 3
+	flags: 0011
+[Variable Header]
+	topic name: 	house/room/main-light
+	packet identifier: 	5
+[Payload]
+	application message: 	off
+Pending Queue
+Acknownledge Queue
+<------------------------------>
+
+subscriber1 DISCARD PACKET PUBACK 2 FROM sent
+
+========= TOPIC LOGS ==========
+<------ Topics -->
+[  ]
+[ house ]
+[ house/gargage ]
+	> subscriber1 : 00
+[ house/room ]
+[ house/room/main-light ]
+	> subscriber1 : 01
+	> retain msg: off, QoS: 01
+[ house/room/side-light ]
+	> subscriber1 : 10
+[ house/garage ]
+	> retain msg: off, QoS: 00
 <----- Clean Session --->
 subscriber1
 publisher1
@@ -888,8 +307,6 @@ Acknownledge Queue
 
 subscriber2 STORE PACKET PUBLISH 1 TO sent
 
-subscriber2 STORE PACKET PUBLISH 2 TO sent
-
 SENDING SUBACK TO CLIENT WITH ID subscriber2
 
 ========= TOPIC LOGS ==========
@@ -897,103 +314,18 @@ SENDING SUBACK TO CLIENT WITH ID subscriber2
 [  ]
 [ house ]
 [ house/gargage ]
+	> subscriber1 : 00
 	> subscriber2 : 10
-[ house/garage ]
-	> retain msg: on, QoS: 00
 [ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
 [ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber1
-publisher1
-<----- Session --------->
-subscriber2
-<----- Client ID:	publisher1 	----->
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 0101
-[Variable Header]
-	topic name: 	house/garage
-	packet identifier: 	4
-[Payload]
-	application message: 	off
-Sent Queue
-Pending Queue
-Acknownledge Queue
-<------------------------------>
-
-publisher1 STORE PACKET PUBLISH 4 TO pending
-
-SENDING PUBREC TO CLIENT WITH ID publisher1
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/gargage ]
-	> subscriber2 : 10
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: on, QoS: 01
-<----- Clean Session --->
-subscriber1
-publisher1
-<----- Session --------->
-subscriber2
-<----- Client ID:	publisher1 	----->
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 0011
-[Variable Header]
-	topic name: 	house/room/main-light
-	packet identifier: 	5
-[Payload]
-	application message: 	off
-Sent Queue
-Pending Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 0101
-[Variable Header]
-	topic name: 	house/garage
-	packet identifier: 	4
-[Payload]
-	application message: 	off
-Acknownledge Queue
-<------------------------------>
-
-subscriber2 STORE PACKET PUBLISH 3 TO sent
-
-SENDING PUBACK TO CLIENT WITH ID publisher1
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/gargage ]
-	> subscriber2 : 10
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
+	> subscriber1 : 01
 	> subscriber2 : 01
 	> retain msg: off, QoS: 01
+[ house/room/side-light ]
+	> subscriber1 : 10
+	> subscriber2 : 00
+[ house/garage ]
+	> retain msg: off, QoS: 00
 <----- Clean Session --->
 subscriber1
 publisher1
@@ -1005,131 +337,40 @@ subscriber2
 	packet type: 4
 	flags: 0000
 [Variable Header]
-	packet identifier: 	3
+	packet identifier: 	1
 [Payload]
 Sent Queue
 [PUBLISH]
 [Fixed Header]
 	packet type: 3
-	flags: 0011
+	flags: 1011
 [Variable Header]
 	topic name: 	house/room/main-light
-	packet identifier: 	5
+	packet identifier: 	1
 [Payload]
 	application message: 	off
 Pending Queue
 Acknownledge Queue
 <------------------------------>
 
-subscriber2 DISCARD PACKET PUBACK 3 FROM sent
+subscriber2 DISCARD PACKET PUBACK 1 FROM sent
 
 ========= TOPIC LOGS ==========
 <------ Topics -->
 [  ]
 [ house ]
 [ house/gargage ]
+	> subscriber1 : 00
 	> subscriber2 : 10
-[ house/garage ]
-	> retain msg: on, QoS: 00
 [ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
 [ house/room/main-light ]
+	> subscriber1 : 01
 	> subscriber2 : 01
 	> retain msg: off, QoS: 01
-<----- Clean Session --->
-subscriber1
-publisher1
-<----- Session --------->
-subscriber2
-<----- Client ID:	publisher1 	----->
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 0001
-[Variable Header]
-	topic name: 	house/room/side-light 
-[Payload]
-	application message: 	off
-Sent Queue
-Pending Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 0101
-[Variable Header]
-	topic name: 	house/garage
-	packet identifier: 	4
-[Payload]
-	application message: 	off
-Acknownledge Queue
-<------------------------------>
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/gargage ]
-	> subscriber2 : 10
-[ house/garage ]
-	> retain msg: on, QoS: 00
-[ house/room ]
 [ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: off, QoS: 01
-[ house/room/side-light  ]
-	> retain msg: off, QoS: 00
-<----- Clean Session --->
-subscriber1
-publisher1
-<----- Session --------->
-subscriber2
-<----- Client ID:	publisher1 	----->
-[PUBREL]
-[Fixed Header]
-	packet type: 6
-	flags: 0010
-[Variable Header]
-	packet identifier: 	4
-[Payload]
-Sent Queue
-Pending Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 0101
-[Variable Header]
-	topic name: 	house/garage
-	packet identifier: 	4
-[Payload]
-	application message: 	off
-Acknownledge Queue
-<------------------------------>
-
-publisher1 DISCARD PACKET PUBREL 4 FROM pending
-
-SENDING PUBCOMP TO CLIENT WITH ID publisher1
-
-========= TOPIC LOGS ==========
-<------ Topics -->
-[  ]
-[ house ]
-[ house/gargage ]
-	> subscriber2 : 10
+	> subscriber1 : 10
+	> subscriber2 : 00
 [ house/garage ]
-	> retain msg: off, QoS: 10
-[ house/room ]
-[ house/room/side-light ]
-	> subscriber2 : 10
-	> retain msg: on, QoS: 10
-[ house/room/main-light ]
-	> subscriber2 : 01
-	> retain msg: off, QoS: 01
-[ house/room/side-light  ]
 	> retain msg: off, QoS: 00
 <----- Clean Session --->
 subscriber1
@@ -1144,76 +385,34 @@ subscriber2
 [Variable Header]
 [Payload]
 Sent Queue
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1011
-[Variable Header]
-	topic name: 	house/room/main-light
-	packet identifier: 	2
-[Payload]
-	application message: 	on
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	1
-[Payload]
-	application message: 	on
 Pending Queue
 Acknownledge Queue
 <------------------------------>
 
 *** Closing Connection From subscriber2 ***
 Cause: Client Disconnect
-Remain Time: 85
+Remain Time: 82
 Sent Queue
-[PUBLISH]
+Pending Queue
+Acknownledge Queue
+*********************************
+
+<----- Client ID:	subscriber1 	----->
+[DISCONNECT]
 [Fixed Header]
-	packet type: 3
-	flags: 1011
+	packet type: 14
+	flags: 0000
 [Variable Header]
-	topic name: 	house/room/main-light
-	packet identifier: 	2
 [Payload]
-	application message: 	on
-[PUBLISH]
-[Fixed Header]
-	packet type: 3
-	flags: 1101
-[Variable Header]
-	topic name: 	house/room/side-light
-	packet identifier: 	1
-[Payload]
-	application message: 	on
+Sent Queue
 Pending Queue
 Acknownledge Queue
-*********************************
+<------------------------------>
 
-*** Closing Connection From publisher1 ***
-Cause: Timeout
-Remain Time: 0
+*** Closing Connection From subscriber1 ***
+Cause: Client Disconnect
+Remain Time: 80
 Sent Queue
 Pending Queue
 Acknownledge Queue
 *********************************
-
-*** Closing Connection From publisher1 ***
-*** Closing Connection From subscriber2 ***
-Cause: Timeout
-Cause: Timeout
-Remain Time: 0
-Sent Queue
-Pending Queue
-Acknownledge Queue
-*********************************
-
-Remain Time: 0
-Sent Queue
-Pending Queue
-Acknownledge Queue
-*********************************
-
-CAUGHT EXCEPTION: KeyError('subscriber2',)

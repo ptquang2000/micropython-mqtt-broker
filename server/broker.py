@@ -3,6 +3,8 @@ import _thread
 import re
 import json
 import btree
+import sys
+
 if __name__ == 'server.broker':
     import server.topic as tp
     import server.packet as pk
@@ -209,6 +211,7 @@ class Client():
                 try:
                     buffer = self._conn.recv(1)
                     if not buffer:
+                        print(self.identifier)
                         continue
                     Client.s_lock.acquire()
                     packet = pk.Packet(buffer)
@@ -229,6 +232,7 @@ class Client():
                 self.disconnect('Timeout')
         except Exception as e:
             logging('\nCAUGHT EXCEPTION: {}\n'.format(str(repr(e))))
+            sys.print_exception(e)
             raise e 
         _thread.exit()
 
@@ -322,7 +326,6 @@ class Client():
                     topic.pop(self)
 
         elif pk.DISCONNECT == packet.packet_type:
-            print('{} SEND DISCONNECT'.format(self.identifier))
             raise MQTTProtocolError('Client Disconnect')
 
         if pk.CONNECT == packet.packet_type:
@@ -371,7 +374,7 @@ class Broker():
                     client = Client(None, None)
                     client._client_id = client_json['_client_id']
                     client._subscriptions = client_json['_subscriptions']
-                    for queue_type in ['_sent', 'pending', '_ack']:
+                    for queue_type in ['_sent', '_pending', '_ack']:
                         queue = client_json['{}_queue'.format(queue_type)]
                         packets = dict()
                         for pid in queue:
@@ -385,7 +388,7 @@ class Broker():
                 db.close()
         except OSError:
             pass
-        
+
 
     def start(self, timeout=None):
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -393,8 +396,8 @@ class Broker():
         self._socket.bind(socket.getaddrinfo(self._ip, self._port)[0][-1])
         self._socket.settimeout(timeout)
         self._socket.listen(5)
-        logging('[SERVER] {} {}'.format(self._ip, str(self._port)))
-        logging('... Listenning ... ')
+        print('[SERVER] {} {}'.format(self._ip, str(self._port)))
+        print('... Listenning ... ')
         self.load()
         try:
             while True:
@@ -406,7 +409,7 @@ class Broker():
 
     
     def stop(self):
-        logging('\n[\t\t BROKER CLOSING \t\t]\n')
+        print('\n[\t\t BROKER CLOSING \t\t]\n')
         self._socket.close()
         with open('topic', 'w+b') as f:
             db = btree.open(f)
@@ -428,11 +431,11 @@ if __name__ == '__main__':
     print(__name__)
     if len(sys.argv) > 1:
         ip = sys.argv[1]
-        logging('Test Broker')
+        print('Test Broker')
         server = Broker(ip)
         try:
             server.start()
         except KeyboardInterrupt:
             server.stop()
     else:
-        logging('Missing broker IP address')
+        print('Missing broker IP address')

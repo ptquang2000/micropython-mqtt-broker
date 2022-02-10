@@ -19,7 +19,6 @@ def publish():
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311, clean_session=False)
     client.on_log = on_log
     client.connect(broker, port)
-    client.loop_start()
     msg = 'on'
     (rc, mid) = client.publish(
         'house/garage', 
@@ -36,18 +35,16 @@ def publish():
         msg, 
         retain=True,
         qos=2)
-    client.loop_stop()
-    client.loop_start()
-    sleep(6)
-    print('after 6')
+    client.disconnect()
+    sleep(26)
+    print('after 26 seconds')
     client.connect(broker, port)
-    sleep(2)
     msg = 'off'
     (rc, mid) = client.publish(
         'house/garage', 
         msg, 
         retain=True,
-        qos=2)
+        qos=0)
     (rc, mid) = client.publish(
         'house/room/main-light',
         msg, 
@@ -57,8 +54,7 @@ def publish():
         'house/room/side-light ', 
         msg, 
         retain=True,
-        qos=0)
-    sleep(5)
-    client.loop_stop()
+        qos=2)
+    client.disconnect()
 
 publish()
