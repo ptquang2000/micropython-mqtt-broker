@@ -26,7 +26,7 @@ class Client():
         self._addr = addr
 
         # Session state
-        self._client_id = None
+        self._client_id = '#EMPTY#'
         self._packet_identifier = 0
         self._subscriptions = dict()
         self._sent_queue = dict()
@@ -162,7 +162,7 @@ class Client():
             print('\n{}'.format(str(client)))
 
     
-    def error_handler(self, e, packet):
+    def error_handler(self, e, packet=None):    
         if e.value == 'MQTT-3.1.2-2':
             packet.variable_header.update(
                 {'return_code': pk.UNACCECCEPTABLE_PROTOCOL})
@@ -203,14 +203,17 @@ class Client():
                 try:
                     buffer = self._conn.recv(1)
                     if not buffer:
-                        print(self.identifier)
-                        continue
-                    Client.s_lock.acquire()
-                    packet = pk.Packet(buffer)
+                        self.disconnect('Socket close')
+                        break
                     try:
+                        Client.s_lock.acquire()
+                        packet = pk.Packet(buffer)
                         self << packet
                     except MQTTProtocolError as e:
-                        self.error_handler(e, packet)
+                        if 'packet' in locals():
+                            self.error_handler(e, packet)
+                        else:
+                            self.error_handler(e)
                         break
                     else:
                         self >> packet
@@ -224,8 +227,8 @@ class Client():
                 self.disconnect('Timeout')
         except Exception as e:
             print('\nCAUGHT EXCEPTION: {}\n'.format(str(repr(e))))
-            sys.print_exception(e)
-            raise e 
+            # sys.print_exception(e)
+            raise e
         _thread.exit()
 
 
@@ -274,7 +277,7 @@ class Client():
             if packet.protocol_level != 4:
                 raise MQTTProtocolError('MQTT-3.1.2-2')
             if (len(packet.client_identifier) > 23 or 
-                not re.match('[0-9a-zA-Z]+$', 
+                not re.match('[0-9a-zA-Z\-_]+$', 
                     packet.client_identifier)):
                 raise MQTTProtocolError('MQTT-3.1.3-5')
             self.clean_session_handler(packet)
@@ -401,14 +404,14 @@ class Broker():
 
     
     def stop(self):
-        print('\n[\t\t BROKER CLOSING \t\t]\n')
+        print('\n...... BROKER CLOSING ......\n')
         self._socket.close()
         with open('topic', 'w+b') as f:
             db = btree.open(f)
             topics = Client.topics.serialize()
             for topic in topics:
                 topic_filter = json.loads(topic)['topic_filter'].encode()
-                db[topic_filter.encode()] = topic.encode()
+                db[topic_filter] = topic.encode()
             db.flush()
             db.close()
         with open('session', 'w+b') as f:
@@ -421,7 +424,6 @@ class Broker():
 
 if __name__ == '__main__':
     import sys
-    print(__name__)
     if len(sys.argv) > 1:
         ip = sys.argv[1]
         print('Test Broker')

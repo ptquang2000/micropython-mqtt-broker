@@ -3,14 +3,14 @@ import json
 
 if __name__ == 'packet':
     import topic as tp
-    from utility import variable_length_encode, utf8_encoded_string
+    from utility import variable_length_encode, utf8_encoded_string, MQTTProtocolError
 elif __name__ == 'server.packet':
     import server.topic as tp
-    from server.utility import variable_length_encode, utf8_encoded_string
+    from server.utility import variable_length_encode, utf8_encoded_string, MQTTProtocolError
 
 
 # MQTT version
-MQTTv311 = b'\x01'
+MQTTv311 = b'\x04'
 
 
 # Packet type
@@ -97,10 +97,10 @@ class Packet():
         self._flag_bits = int.from_bytes(buffer, 'big') & 0x0f
 
         # Flag bits
-        if self._packet_type in (SUBSCRIBE, UNSUBSCRIBE, PUBREL):
-            assert self._flag_bits == 2, 'Flags for subscribe packet must be 2'
-        elif self._packet_type != PUBLISH:
-            assert self._flag_bits == RESERVED, 'Flags for packet 0'
+        if self._packet_type in (SUBSCRIBE, UNSUBSCRIBE, PUBREL) and self._flag_bits != 2:
+            raise MQTTProtocolError('MQTT-2.2.2-2')
+        elif self._packet_type != PUBLISH and self._flag_bits != RESERVED:
+            raise MQTTProtocolError('MQTT-2.2.2-2')
         self._remain_length = 0
         self._variable_header = dict()
         self._payload = dict()

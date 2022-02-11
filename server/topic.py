@@ -1,6 +1,5 @@
 import json
 
-
 if __name__ == 'topic':
     import packet as pk
 elif __name__ == 'server.topic':
