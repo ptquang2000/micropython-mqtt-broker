@@ -79,7 +79,7 @@ class Topic():
                 packet.flag_bits = packet.flag_bits | 0x08
                 client.store_message(packet, 'sent')
 
-        if self.name == '#':
+        if self._name == '#':
             self._parent._subscription.add(client)
             try:
                 qos = max(self._parent._subscriber_qos[client.identifier], qos)
@@ -98,7 +98,7 @@ class Topic():
                 if packet.qos_level != pk.QOS_0:
                     packet.flag_bits = packet.flag_bits | 0x08
                     client.store_message(packet, 'sent')
-    
+
 
     def pop(self, client):
         if  self._parent and self.name == '#':
@@ -111,7 +111,8 @@ class Topic():
 
     
     def clean_up(self):
-        if self._parent and not self.retain and not self._subscription and not self._children:
+        if (self._parent and not self.retain and not self._subscription 
+        and not self._children):
             self._parent._children.pop(self._name)
             self._parent.clean_up()
 
@@ -150,11 +151,12 @@ class Topic():
     def __setitem__(self, topic_name, packet):
         topic_levels = self.separator(topic_name)
         if topic_levels[1:]:
-            if topic_levels[0] not in self._children and packet.retain == '1':
+            if packet.retain == '1' and topic_levels[0] not in self._children:
                 self._children[topic_levels[0]] = Topic(
                     topic_name=topic_levels[0], parent=self)
             try:
-                self._children[topic_levels[0]]['/'.join(topic_levels[1:])] = packet
+                self._children[
+                    topic_levels[0]]['/'.join(topic_levels[1:])] = packet
             except KeyError:
                 pass
             try:
@@ -182,7 +184,6 @@ class Topic():
                     topic._app_msg = packet.application_message
                     topic._qos_level = packet.qos_level
 
-                # Save origin
                 origin_flag_bits = packet.flag_bits
                 try:
                     origin_pk_id = packet.packet_identifier
@@ -205,7 +206,8 @@ class Topic():
                 # Reset packet
                 packet.flag_bits = origin_flag_bits
                 if packet.qos_level != pk.QOS_0:
-                    packet.variable_header.update({'packet_identifier': origin_pk_id})
+                    packet.variable_header.update(
+                        {'packet_identifier': origin_pk_id})
 
 
     @staticmethod
