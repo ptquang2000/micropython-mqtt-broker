@@ -22,7 +22,13 @@ def publish():
     msg = 'on'
 
     client.loop_start()
+    i = 0
     while True:
+        if i % 2 == 0:
+            msg = 'on'
+        else:
+            msg = 'off'
+        i += 1
         (rc, mid) = client.publish(
             'house/room/main-light', 
             msg, 
@@ -43,7 +49,6 @@ def publish():
             'house', 
             msg, 
             qos=0)
-        sleep(20)
-        msg = 'off'
+        sleep(5)
 
 publish()

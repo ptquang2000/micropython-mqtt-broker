@@ -95,7 +95,7 @@ class Client():
                 old_session = Client.clean_sessions[self._client_id]
                 self._subscriptions = old_session._subscriptions
                 for topic_filter, qos in self._subscriptions.items():
-                    topic = Client.topics[topic_filter]
+                    topic = Client.topics.get_topic(topic_filter, self, qos)
                     topic.add(self, qos)
                 for pk_id, sent in old_session._sent_queue.items():
                     self._conn.write(sent.publish)
@@ -191,7 +191,7 @@ class Client():
             print(packet)
         print('\n*********************************\n')
         for topic_filter in self._subscriptions:
-            topic = Client.topics[topic_filter]
+            topic = Client.topics.get_topic(topic_filter)
             topic.pop(self)
         Client.sessions.pop(self._client_id, None)
         self._conn.close()
@@ -284,7 +284,7 @@ class Client():
             self.keep_alive_setup(packet)
 
         elif pk.PUBLISH == packet.packet_type and pk.QOS_2 != packet.qos_level:
-            Client.topics[packet.topic_name] = packet
+            Client.topics.send_publish(packet.topic_name, packet, packet.retain)
 
         elif pk.PUBACK == packet.packet_type:
             self.discard_message(packet, 'sent')
@@ -298,7 +298,7 @@ class Client():
 
         elif pk.PUBREL == packet.packet_type:
             publish_packet = self._pending_queue[packet.packet_identifier]
-            Client.topics[publish_packet.topic_name] = publish_packet
+            Client.topics.send_publish(publish_packet.topic_name, publish_packet, publish_packet.retain)
             self.discard_message(packet, 'pending')
 
         elif pk.PUBCOMP == packet.packet_type:
@@ -307,7 +307,7 @@ class Client():
         elif pk.SUBSCRIBE == packet.packet_type:
             for topic_filter, qos in packet.topic_filters.items():
                 self._subscriptions[topic_filter] = qos
-                topic = Client.topics[topic_filter]
+                topic = Client.topics.get_topic(topic_filter, self, qos)
                 topic.add(self, qos)
 
         elif pk.UNSUBSCRIBE == packet.packet_type:
@@ -317,7 +317,7 @@ class Client():
                 except KeyError:
                     pass
                 else:
-                    topic = Client.topics[topic_filter]
+                    topic = Client.topics.get_topic(topic_filter)
                     topic.pop(self)
 
         elif pk.DISCONNECT == packet.packet_type:
@@ -355,7 +355,7 @@ class Broker():
                 db = btree.open(f)
                 for i in db:
                     topic_json = json.loads(db[i].decode('utf-8'))
-                    topic = Client.topics[topic_json['topic_filter']]
+                    topic = Client.topics.get_topic(topic_json['topic_filter'])
                     topic._app_msg = topic_json['_app_msg']
                     topic._qos_level = topic_json['_qos_level']
                 db.close()

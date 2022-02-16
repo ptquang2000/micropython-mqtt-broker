@@ -44,21 +44,6 @@ class Topic():
         return self._app_msg
 
 
-    def retain_message(self, identifier):
-        packet = pk.Packet()
-        packet.packet_type = pk.PUBLISH
-        qos_level = min(
-            self._qos_level, 
-            self._subscriber_qos[identifier],
-            Topic._max_qos
-        )
-        packet.flag_bits = int.from_bytes(pk.QOS_CODE[qos_level], 'big') << 1
-        packet.flag_bits = packet.flag_bits | 1
-        packet.variable_header.update({'topic_name': self.topic_filter})
-        packet.payload.update({'application_message': self._app_msg})
-        return packet
-
-
     def add(self, client, qos):
         self._subscription.add(client)
         try:
@@ -70,14 +55,6 @@ class Topic():
                 self._qos_level, 
                 Topic._max_qos, 
                 qos])
-        if self.retain:
-            packet = self.retain_message(client.identifier)
-            if packet.qos_level != pk.QOS_0:
-                packet.variable_header.update({'packet_identifier': client.new_packet_id()})
-            client.conn.write(packet.publish)
-            if packet.qos_level != pk.QOS_0:
-                packet.flag_bits = packet.flag_bits | 0x08
-                client.store_message(packet, 'sent')
 
         if self._name == '#':
             self._parent._subscription.add(client)
@@ -90,14 +67,6 @@ class Topic():
                     self._parent._qos_level, 
                     Topic._max_qos, 
                     qos])
-            if self._parent.retain:
-                packet = self._parent.retain_message(client.identifier)
-                if packet.qos_level != pk.QOS_0:
-                    packet.variable_header.update({'packet_identifier': client.new_packet_id()})
-                client.conn.write(packet.publish)
-                if packet.qos_level != pk.QOS_0:
-                    packet.flag_bits = packet.flag_bits | 0x08
-                    client.store_message(packet, 'sent')
 
 
     def pop(self, client):
@@ -111,8 +80,7 @@ class Topic():
 
     
     def clean_up(self):
-        if (self._parent and not self.retain and not self._subscription 
-        and not self._children):
+        if self._parent and not self.retain and not self._subscription and not self._children:
             self._parent._children.pop(self._name)
             self._parent.clean_up()
 
@@ -128,51 +96,103 @@ class Topic():
         else:
             return ''
 
+    
+    def send_retain(self, client, qos):
+        packet = pk.Packet()
+        packet.packet_type = pk.PUBLISH
+        try:
+            qos_level = min(
+                self._qos_level, 
+                self._subscriber_qos[client.identifier],
+                Topic._max_qos
+            )
+        except KeyError:
+            qos_level = min(
+                self._qos_level, 
+                qos,
+                Topic._max_qos
+            )
+        packet.flag_bits = int.from_bytes(pk.QOS_CODE[qos_level], 'big') << 1
+        packet.flag_bits = packet.flag_bits | 1
+        packet.variable_header.update({'topic_name': self.topic_filter})
+        packet.payload.update({'application_message': self._app_msg})
+        if packet.qos_level != pk.QOS_0:
+            packet.variable_header.update({'packet_identifier': client.new_packet_id()})
+        client.conn.write(packet.publish)
+        if packet.qos_level != pk.QOS_0:
+            packet.flag_bits = packet.flag_bits | 0x08
+            client.store_message(packet, 'sent')
 
-    def __getitem__(self, topic_filter):
-        if not isinstance(topic_filter, str):
-            raise KeyError(topic_filter)
+    
+    def number_sign_retain(self, client, qos):
+        print('number sign')
+        if self.retain:
+            self.send_retain(client, qos)
+        for _, topic in self._children.items():
+            topic.number_sign_retain(client, qos)
 
-        topic_levels = self.separator(topic_filter)
+
+    def plus_sign_retain(self, topic_levels, client, qos):
+        try:
+            if len(topic_levels) == 1:
+                if topic_levels[0] == self._name:
+                    self.send_retain(client, qos)
+                elif topic_levels[0] == '+':
+                    for _, topic in self._parent._children:
+                        topic.send_retain(client, qos)
+            self._children[topic_levels[0]].plus_sign_retain(topic_levels[1:], client, qos)
+        except KeyError:
+            if topic_levels[0] == '+':
+                for _, sibling in self._children.items():
+                    sibling.plus_sign_retain(topic_levels[1:], client, qos)
+            
+
+    def get_topic(self, topic_filter, client=None, qos=None):
+        topic_levels = topic_filter.split('/')
         if topic_levels[1:]:
             if topic_levels[0] not in self._children:
-                self._children[topic_levels[0]] = Topic(
-                    topic_name=topic_levels[0], parent=self)
-            return self._children[topic_levels[0]]['/'.join(topic_levels[1:])]
+                self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
+            topic = self._children[topic_levels[0]].get_topic('/'.join(topic_levels[1:]), client, qos)
+            # find retain message
+            if client and topic._name == '#':
+                self.number_sign_retain(client, qos)
+            elif client and topic._name == '+':
+                for name, sibling in self._parent._children.items():
+                    if name == '+': continue
+                    sibling.plus_sign_retain(topic_levels[1:], client, qos)
+            return topic
         else:
             try:
+                if client and self._children[topic_levels[0]].retain:
+                    self._children[topic_levels[0]].send_retain(client, qos)
                 return self._children[topic_levels[0]]
             except KeyError:
-                self._children[topic_levels[0]] = Topic(
-                    topic_name=topic_levels[0], parent=self)
+                self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
                 return self._children[topic_levels[0]]
                 
 
-    def __setitem__(self, topic_name, packet):
-        topic_levels = self.separator(topic_name)
+    def send_publish(self, topic_name, packet, retain):
+        topic_levels = topic_name.split('/')
         if topic_levels[1:]:
-            if packet.retain == '1' and topic_levels[0] not in self._children:
-                self._children[topic_levels[0]] = Topic(
-                    topic_name=topic_levels[0], parent=self)
+            if retain == '1' and topic_levels[0] not in self._children:
+                self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
             try:
-                self._children[
-                    topic_levels[0]]['/'.join(topic_levels[1:])] = packet
+                self._children[topic_levels[0]].send_publish('/'.join(topic_levels[1:]), packet, retain)
             except KeyError:
                 pass
             try:
-                if '#' in self._children[topic_levels[0]]:
-                    self._children[topic_levels[0]]['#'] = packet
+                self._children['+'].send_publish('/'.join(topic_levels[1:]), packet, '0')
             except KeyError:
                 pass
             try:
-                self._children['+']['/'.join(topic_levels[1:])] = packet
+                self._children['#'].send_publish('/'.join(topic_levels[1:]), packet, '0')
             except KeyError:
                 pass
         else:
             try:
                 topic = self._children[topic_levels[0]]
             except KeyError:
-                if packet.retain == '1':
+                if retain == '1':
                     self._children[topic_levels[0]] = Topic(
                         topic_name=topic_levels[0], 
                         app_msg=packet.application_message,
@@ -180,7 +200,7 @@ class Topic():
                         parent=self)
                     self.clean_up()
             else:
-                if packet.retain == '1':
+                if retain == '1':
                     topic._app_msg = packet.application_message
                     topic._qos_level = packet.qos_level
 
@@ -196,8 +216,7 @@ class Topic():
                         pk.QOS_CODE[qos_level], 'big'
                     ) << 1
                     if qos_level != pk.QOS_0:
-                        packet.variable_header.update(
-                            {'packet_identifier': subscriber.new_packet_id()})
+                        packet.variable_header.update({'packet_identifier': subscriber.new_packet_id()})
                     subscriber.conn.write(packet.publish)
                     if qos_level != pk.QOS_0:
                         # Set DUP for re-send
@@ -206,18 +225,7 @@ class Topic():
                 # Reset packet
                 packet.flag_bits = origin_flag_bits
                 if packet.qos_level != pk.QOS_0:
-                    packet.variable_header.update(
-                        {'packet_identifier': origin_pk_id})
-
-
-    @staticmethod
-    def separator(topic):
-        levels = topic.split('/')
-        if topic[0] == '/':
-            levels[0] = '/' + levels[0]
-        if topic[-1] == '/':
-            levels[-1] = '/' + levels[-1]
-        return levels
+                    packet.variable_header.update({'packet_identifier': origin_pk_id})
 
 
     def __str__(self):
