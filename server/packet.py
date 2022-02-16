@@ -35,6 +35,7 @@ DISCONNECT = 14
 QOS_0 = '00'
 QOS_1 = '01'
 QOS_2 = '10'
+QOS_INVALID = '11'
 
 
 # Return Code
@@ -54,6 +55,7 @@ QOS_CODE = {
     QOS_0: MAXIMUM_QOS0,
     QOS_1: MAXIMUM_QOS1,
     QOS_2: MAXIMUM_QOS2,
+    QOS_INVALID: FAILURE
 }
 
 
@@ -391,7 +393,10 @@ class Packet():
         # Payload
         return_code = b''
         for _, qos_level in self.topic_filters.items():
-            return_code += QOS_CODE[min(qos_level, tp.Topic._max_qos)]
+            if qos_level == QOS_INVALID:
+                return_code += QOS_CODE[QOS_INVALID]
+            else:
+                return_code += QOS_CODE[min(qos_level, tp.Topic._max_qos)]
         remain_length = variable_length_encode(2 + len(return_code)).to_bytes(1, 'big')
         return fixed_header + remain_length + packet_identifier + return_code
 

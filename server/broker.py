@@ -306,9 +306,12 @@ class Client():
 
         elif pk.SUBSCRIBE == packet.packet_type:
             for topic_filter, qos in packet.topic_filters.items():
-                self._subscriptions[topic_filter] = qos
-                topic = Client.topics.get_topic(topic_filter, self, qos)
-                topic.add(self, qos)
+                if re.match('\/?([a-zA-Z0-9_\-]+\/|\+\/)*([a-zA-Z0-9_\-]+|#|\+)?$', topic_filter):
+                    self._subscriptions[topic_filter] = qos
+                    topic = Client.topics.get_topic(topic_filter, self, qos)
+                    topic.add(self, qos)
+                else:
+                    packet.payload.update({topic_filter: pk.QOS_INVALID})
 
         elif pk.UNSUBSCRIBE == packet.packet_type:
             for topic_filter in packet.topic_filters:
