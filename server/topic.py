@@ -135,13 +135,10 @@ class Topic():
         if len(topic_levels) == 1:
             if topic_levels[0] == '+':
                 for name, sibling in self._children.items():
-                    if name == '+' or not self.retain: continue
+                    if name == '+' or not sibling.retain: continue
                     sibling.send_retain(client, qos)
-            else:
-                try:
+            elif topic_levels[0] in self._children and self._children[topic_levels[0]].retain:
                     self._children[topic_levels[0]].send_retain(client, qos)
-                except KeyError:
-                    pass
         elif topic_levels[0] != '+':
             try:
                 self._children[topic_levels[0]].plus_sign_retain(topic_levels[1:], client, qos)
@@ -190,7 +187,7 @@ class Topic():
             except KeyError:
                 pass
             try:
-                self._children['#'].send_publish('/'.join(topic_levels[1:]), packet, '0')
+                self._children[topic_levels[0]].send_publish('#', packet, '0')
             except KeyError:
                 pass
         else:
