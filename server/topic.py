@@ -132,18 +132,25 @@ class Topic():
 
 
     def plus_sign_retain(self, topic_levels, client, qos):
-        try:
-            if len(topic_levels) == 1:
-                if topic_levels[0] == self._name:
-                    self.send_retain(client, qos)
-                elif topic_levels[0] == '+':
-                    for _, topic in self._parent._children:
-                        topic.send_retain(client, qos)
-            self._children[topic_levels[0]].plus_sign_retain(topic_levels[1:], client, qos)
-        except KeyError:
+        if len(topic_levels) == 1:
             if topic_levels[0] == '+':
-                for _, sibling in self._children.items():
-                    sibling.plus_sign_retain(topic_levels[1:], client, qos)
+                for name, sibling in self._children.items():
+                    if name == '+' or not self.retain: continue
+                    sibling.send_retain(client, qos)
+            else:
+                try:
+                    self._children[topic_levels[0]].send_retain(client, qos)
+                except KeyError:
+                    pass
+        elif topic_levels[0] != '+':
+            try:
+                self._children[topic_levels[0]].plus_sign_retain(topic_levels[1:], client, qos)
+            except KeyError:
+                pass
+        else:
+            for name, sibling in self._children.items():
+                if name == '+': continue
+                sibling.plus_sign_retain(topic_levels[1:], client, qos)
             
 
     def get_topic(self, topic_filter, client=None, qos=None):
@@ -151,24 +158,23 @@ class Topic():
         if topic_levels[1:]:
             if topic_levels[0] not in self._children:
                 self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
-            topic = self._children[topic_levels[0]].get_topic('/'.join(topic_levels[1:]), None, None)
-            # find retain message
-            if client and topic._name == '#':
-                topic._parent.number_sign_retain(client, qos)
-            elif client and topic._name == '+':
-                for name, sibling in topic._parent._children.items():
+            topic = self._children[topic_levels[0]].get_topic('/'.join(topic_levels[1:]), client, qos)
+            if client and topic_levels[0] == '+':
+                for name, sibling in self._children.items():
                     if name == '+': continue
                     sibling.plus_sign_retain(topic_levels[1:], client, qos)
             return topic
         else:
-            try:
-                if client and self._children[topic_levels[0]].retain:
-                    self._children[topic_levels[0]].send_retain(client, qos)
-                return self._children[topic_levels[0]]
-            except KeyError:
+            if topic_levels[0] not in self._children:
                 self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
-                return self._children[topic_levels[0]]
-                
+            if client and self._children[topic_levels[0]].retain:
+                self._children[topic_levels[0]].send_retain(client, qos)
+            if client and topic_levels[0] == '#':
+                self._children[topic_levels[0]]._parent.number_sign_retain(client, qos)
+            if client and topic_levels[0] == '+':
+                self.plus_sign_retain(topic_levels, client, qos)
+            return self._children[topic_levels[0]]
+
 
     def send_publish(self, topic_name, packet, retain):
         topic_levels = topic_name.split('/')
