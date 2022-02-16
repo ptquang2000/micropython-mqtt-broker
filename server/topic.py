@@ -125,7 +125,6 @@ class Topic():
 
     
     def number_sign_retain(self, client, qos):
-        print('number sign')
         if self.retain:
             self.send_retain(client, qos)
         for _, topic in self._children.items():
@@ -152,12 +151,12 @@ class Topic():
         if topic_levels[1:]:
             if topic_levels[0] not in self._children:
                 self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
-            topic = self._children[topic_levels[0]].get_topic('/'.join(topic_levels[1:]), client, qos)
+            topic = self._children[topic_levels[0]].get_topic('/'.join(topic_levels[1:]), None, None)
             # find retain message
             if client and topic._name == '#':
-                self.number_sign_retain(client, qos)
+                topic._parent.number_sign_retain(client, qos)
             elif client and topic._name == '+':
-                for name, sibling in self._parent._children.items():
+                for name, sibling in topic._parent._children.items():
                     if name == '+': continue
                     sibling.plus_sign_retain(topic_levels[1:], client, qos)
             return topic
