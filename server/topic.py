@@ -176,7 +176,10 @@ class Topic():
     def send_publish(self, topic_name, packet, retain):
         topic_levels = topic_name
         if isinstance(topic_name, list) and not topic_name:
-            print('end[{}], parent[{}]'.format(topic_name, self._parent._name))
+            if retain == '1':
+                self._app_msg = packet.application_message
+                self._qos_level = packet.qos_level
+
             origin_flag_bits = packet.flag_bits
             try:
                 origin_pk_id = packet.packet_identifier
@@ -211,18 +214,15 @@ class Topic():
                 parent=self)
             self.clean_up()
         try:
-            print('start[{}], {}, {}'.format(topic_levels[0], topic_levels[1:], list(self._children.keys())))
             self._children[topic_levels[0]].send_publish(topic_levels[1:], packet, retain)
         except KeyError:
             pass
         try:
-            print('start[#], {}, {}'.format('', list(self._children.keys())))
             self._children['#'].send_publish(list(), packet, '0')
         except KeyError:
             pass
         try:
-            print('start[+], {}, {}'.format(topic_levels[1:], list(self._children.keys())))
-            self._children['+'].send_publish(topic_levels[1:], packet, retain)
+            self._children['+'].send_publish(topic_levels[1:], packet, '0')
         except KeyError:
             pass
 
