@@ -1,0 +1,98 @@
+version: "3.9"
+
+services:
+  subscriber1:
+    container_name: subscriber1
+    image: client
+    volumes:
+      - ./subscriber1.py:/client/subscriber.py
+    command: python subscriber.py mqtt
+    environment:
+      - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
+
+  subscriber2:
+    container_name: subscriber2
+    image: client
+    volumes:
+      - ./subscriber2.py:/client/subscriber.py
+    command: python subscriber.py mqtt
+    environment:
+      - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
+
+  subscriber3:
+    container_name: subscriber3
+    image: client
+    volumes:
+      - ./subscriber3.py:/client/subscriber.py
+    command: python subscriber.py mqtt
+    environment:
+      - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
+
+  subscriber4:
+    container_name: subscriber4
+    image: client
+    volumes:
+      - ./subscriber4.py:/client/subscriber.py
+    command: python subscriber.py mqtt
+    environment:
+      - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
+
+  subscriber5:
+    container_name: subscriber5
+    image: client
+    volumes:
+      - ./subscriber5.py:/client/subscriber.py
+    command: python subscriber.py mqtt
+    environment:
+      - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
+
+  subscriber6:
+    container_name: subscriber6
+    image: client
+    volumes:
+      - ./subscriber6.py:/client/subscriber.py
+    command: python subscriber.py mqtt
+    environment:
+      - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
+
+  subscriber7:
+    container_name: subscriber7
+    image: client
+    volumes:
+      - ./subscriber7.py:/client/subscriber.py
+    command: python subscriber.py mqtt
+    environment:
+      - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"
+
+  publisher:
+    container_name: publisher
+    image: client
+    volumes:
+      - ./publisher.py:/client/publisher.py
+    command: python publisher.py mqtt
+    environment:
+      - PYTHONUNBUFFERED=1
+    network_mode: "host"
+    extra_hosts:
+      - "mqtt:127.24.0.4"

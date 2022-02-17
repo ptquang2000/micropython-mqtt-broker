@@ -70,7 +70,7 @@ class Topic():
 
 
     def pop(self, client):
-        if  self._parent and self.name == '#':
+        if  self._parent and self._name == '#':
             self._parent._subscription.remove(client.identifier)
             self._parent._subscriber_qos.pop(client.identifier)
 
@@ -89,12 +89,12 @@ class Topic():
     def topic_filter(self):
         if self._parent:
             buffer = self._parent.topic_filter
-            if buffer:
-                buffer += '/'
+            if buffer != '$SYS': buffer += '/'
+            else: buffer = ''
             buffer += self._name
             return buffer
         else:
-            return ''
+            return '$SYS'
 
     
     def send_retain(self, client, qos):
@@ -174,60 +174,57 @@ class Topic():
 
 
     def send_publish(self, topic_name, packet, retain):
-        topic_levels = topic_name.split('/')
-        if topic_levels[1:]:
-            if retain == '1' and topic_levels[0] not in self._children:
-                self._children[topic_levels[0]] = Topic(topic_name=topic_levels[0], parent=self)
+        topic_levels = topic_name
+        if isinstance(topic_name, list) and not topic_name:
+            print('end[{}], parent[{}]'.format(topic_name, self._parent._name))
+            origin_flag_bits = packet.flag_bits
             try:
-                self._children[topic_levels[0]].send_publish('/'.join(topic_levels[1:]), packet, retain)
-            except KeyError:
+                origin_pk_id = packet.packet_identifier
+            except AttributeError:
                 pass
-            try:
-                self._children['+'].send_publish('/'.join(topic_levels[1:]), packet, '0')
-            except KeyError:
-                pass
-            try:
-                self._children[topic_levels[0]].send_publish('#', packet, '0')
-            except KeyError:
-                pass
-        else:
-            try:
-                topic = self._children[topic_levels[0]]
-            except KeyError:
-                if retain == '1':
-                    self._children[topic_levels[0]] = Topic(
-                        topic_name=topic_levels[0], 
-                        app_msg=packet.application_message,
-                        qos=packet.qos_level,
-                        parent=self)
-                    self.clean_up()
-            else:
-                if retain == '1':
-                    topic._app_msg = packet.application_message
-                    topic._qos_level = packet.qos_level
+            for subscriber in self._subscription:
+                qos_level = min(packet.qos_level, 
+                    self._subscriber_qos[subscriber.identifier])
+                packet.flag_bits = int.from_bytes(
+                    pk.QOS_CODE[qos_level], 'big'
+                ) << 1
+                if qos_level != pk.QOS_0:
+                    packet.variable_header.update({'packet_identifier': subscriber.new_packet_id()})
+                subscriber.conn.write(packet.publish)
+                if qos_level != pk.QOS_0:
+                    # Set DUP for re-send
+                    packet.flag_bits = packet.flag_bits | 0x08
+                    subscriber.store_message(packet, 'sent')
+            # Reset packet
+            packet.flag_bits = origin_flag_bits
+            if packet.qos_level != pk.QOS_0:
+                packet.variable_header.update({'packet_identifier': origin_pk_id})
+            return
+        elif isinstance(topic_name, str):
+            topic_levels = topic_name.split('/')
 
-                origin_flag_bits = packet.flag_bits
-                try:
-                    origin_pk_id = packet.packet_identifier
-                except AttributeError:
-                    pass
-                for subscriber in topic._subscription:
-                    qos_level = min(packet.qos_level, 
-                        topic._subscriber_qos[subscriber.identifier])
-                    packet.flag_bits = int.from_bytes(
-                        pk.QOS_CODE[qos_level], 'big'
-                    ) << 1
-                    if qos_level != pk.QOS_0:
-                        packet.variable_header.update({'packet_identifier': subscriber.new_packet_id()})
-                    subscriber.conn.write(packet.publish)
-                    if qos_level != pk.QOS_0:
-                        # Set DUP for re-send
-                        packet.flag_bits = packet.flag_bits | 0x08
-                        subscriber.store_message(packet, 'sent')
-                # Reset packet
-                packet.flag_bits = origin_flag_bits
-                if packet.qos_level != pk.QOS_0:
-                    packet.variable_header.update({'packet_identifier': origin_pk_id})
+        if retain == '1' and topic_levels[0] not in self._children:
+            self._children[topic_levels[0]] = Topic(
+                topic_name=topic_levels[0], 
+                app_msg=packet.application_message,
+                qos=packet.qos_level,
+                parent=self)
+            self.clean_up()
+        try:
+            print('start[{}], {}, {}'.format(topic_levels[0], topic_levels[1:], list(self._children.keys())))
+            self._children[topic_levels[0]].send_publish(topic_levels[1:], packet, retain)
+        except KeyError:
+            pass
+        try:
+            print('start[#], {}, {}'.format('', list(self._children.keys())))
+            self._children['#'].send_publish(list(), packet, '0')
+        except KeyError:
+            pass
+        try:
+            print('start[+], {}, {}'.format(topic_levels[1:], list(self._children.keys())))
+            self._children['+'].send_publish(topic_levels[1:], packet, retain)
+        except KeyError:
+            pass
 
 
     def __str__(self):
