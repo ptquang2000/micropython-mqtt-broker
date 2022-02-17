@@ -16,3 +16,12 @@ UNSUBACK
 If a Server receives an UNSUBSCRIBE packet that contains multiple Topic Filters 
 it MUST handle that packet as if it had received a sequence of multiple 
 UNSUBSCRIBE packets, except that it sends just one UNSUBACK response
+
+|Time   ||
+|---    |---|
+|0      |S1 connect|
+|       |S1 subscribe house/room1/main-light, house/room1/side-light, house/garage|
+|6      |S1 unsubscribe house|
+|6      |S1 unsubscribe house/room1/side-light, house/garage|
+|6      |S1 subsribe house/room1/side-light|
+|6      |S1 unsubscribe house/room1/side-light, house/garage|

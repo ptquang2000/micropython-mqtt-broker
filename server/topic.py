@@ -189,8 +189,7 @@ class Topic():
                 qos_level = min(packet.qos_level, 
                     self._subscriber_qos[subscriber.identifier])
                 packet.flag_bits = int.from_bytes(
-                    pk.QOS_CODE[qos_level], 'big'
-                ) << 1
+                    pk.QOS_CODE[qos_level], 'big') << 1
                 if qos_level != pk.QOS_0:
                     packet.variable_header.update({'packet_identifier': subscriber.new_packet_id()})
                 subscriber.conn.write(packet.publish)
