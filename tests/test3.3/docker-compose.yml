@@ -1,62 +1,56 @@
 version: "3.9"
 
 services:
+  broker:
+    container_name:  broker
+    build: ../broker
+    volumes:
+      - ../../server:/broker/server
+    command: /broker/micropython/ports/unix/micropython server/broker.py broker
+    logging:
+      driver: none
+
   subscriber1:
     container_name: subscriber1
     image: client
     volumes:
       - ./subscriber1.py:/client/subscriber.py
-    command: python subscriber.py mqtt
-    network_mode: "host"
-    extra_hosts:
-      - "mqtt:127.24.0.4"
-    environment:
-      - PYTHONUNBUFFERED=1
+    command: python subscriber.py
+    depends_on:
+      - broker
 
   subscriber2:
     container_name: subscriber2
     image: client
     volumes:
       - ./subscriber2.py:/client/subscriber.py
-    command: python subscriber.py mqtt
-    environment:
-      - PYTHONUNBUFFERED=1
-    network_mode: "host"
-    extra_hosts:
-      - "mqtt:127.24.0.4"
+    command: python subscriber.py
+    depends_on:
+      - broker
 
   subscriber3:
     container_name: subscriber3
     image: client
     volumes:
       - ./subscriber3.py:/client/subscriber.py
-    command: python subscriber.py mqtt
-    environment:
-      - PYTHONUNBUFFERED=1
-    network_mode: "host"
-    extra_hosts:
-      - "mqtt:127.24.0.4"
-   
+    command: python subscriber.py
+    depends_on:
+      - broker
+
   subscriber4:
     container_name: subscriber4
     image: client
     volumes:
       - ./subscriber4.py:/client/subscriber.py
-    command: python subscriber.py mqtt
-    environment:
-      - PYTHONUNBUFFERED=1
-    network_mode: "host"
-    extra_hosts:
-      - "mqtt:127.24.0.4"
-
+    command: python subscriber.py
+    depends_on:
+      - broker
+  
   publisher:
     container_name: publisher
     image: client
     volumes:
       - ./publisher.py:/client/publisher.py
-    command: python publisher.py mqtt
-    network_mode: "host"
-    extra_hosts:
-      - "mqtt:127.24.0.4"
-    environment:
-      - PYTHONUNBUFFERED=1
+    command: python publisher.py broker
+    depends_on:
+      - broker

@@ -1,8 +1,8 @@
-import sys
 from time import sleep
 from paho.mqtt import client as mqtt_client
 
-broker = sys.argv[1]
+broker = 'broker'
+client_id = f'client1'
 
 def on_connect(client, userdata, flags, rc):
     print("Connected")
@@ -15,7 +15,6 @@ def on_log(client, userdata, level, buf):
     print('log:', buf)
 
 def connect():
-    client_id = f'client1'
     # Set Connecting Client ID
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_connect = on_connect

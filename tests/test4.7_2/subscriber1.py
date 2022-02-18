@@ -1,8 +1,8 @@
-import sys
 from paho.mqtt import client as mqtt_client
 
 
-broker = sys.argv[1]
+broker = 'broker'
+client_id = f'subscriber1'
 
 def on_subscribe(client, userdata, mid, granted_qos):
     print(f"mid:{mid}, qos:{granted_qos}")
@@ -24,7 +24,6 @@ def on_message(client, userdata, message):
 
 
 def connect():
-    client_id = f'subscriber1'
     # Set Connecting Client ID
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_log = on_log

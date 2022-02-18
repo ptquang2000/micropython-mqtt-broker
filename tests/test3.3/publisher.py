@@ -3,8 +3,9 @@ from time import sleep
 from paho.mqtt import client as mqtt_client
 import sys
 
-broker = sys.argv[1]
+broker = 'broker'
 port = 1883
+client_id = f'publisher'
 
 def on_log(client, userdata, level, buf):
     print('log:', buf)
@@ -15,7 +16,6 @@ def on_publish(client, userdata, mid):
 
 
 def publish():
-    client_id = f'publisher'
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_log = on_log
     client.connect(broker, port)

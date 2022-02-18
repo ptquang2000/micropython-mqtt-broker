@@ -1,9 +1,7 @@
-from asyncore import loop
 from time import sleep
 from paho.mqtt import client as mqtt_client
-import sys
 
-broker = sys.argv[1]
+broker = 'broker'
 port = 1883
 
 def on_log(client, userdata, level, buf):

@@ -1,25 +1,25 @@
 version: "3.9"
 
 services:
+  broker:
+    container_name:  broker
+    build: ../broker
+    volumes:
+      - ../../server:/broker/server
+    command: /broker/micropython/ports/unix/micropython server/broker.py broker
+    logging:
+      driver: none
+
   client1:
     container_name: client1
     image: client
     volumes:
       - ./client.py:/client/client.py
-    command: python client.py mqtt
-    network_mode: "host"
-    extra_hosts:
-      - "mqtt:127.24.0.4"
-    environment:
-    - PYTHONUNBUFFERED=1
+    command: python client.py
+  
   client2:
     container_name: client2
     image: client
     volumes:
       - ./client.py:/client/client.py
-    command: python client.py mqtt
-    network_mode: "host"
-    extra_hosts:
-      - "mqtt:127.24.0.4"
-    environment:
-    - PYTHONUNBUFFERED=1
+    command: python client.py

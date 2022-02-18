@@ -1,8 +1,8 @@
-import sys
 from paho.mqtt import client as mqtt_client
 
 
-broker = sys.argv[1]
+broker = 'broker'
+client_id = f'subscriber4'
 
 def on_log(client, userdata, level, buf):
     print('log:', buf)
@@ -11,7 +11,6 @@ def on_message(client, userdata, message):
     print("received message =",str(message.payload.decode("utf-8")))
 
 def connect():
-    client_id = f'subscriber4'
     # Set Connecting Client ID
     client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311)
     client.on_log = on_log

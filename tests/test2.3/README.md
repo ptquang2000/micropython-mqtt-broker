@@ -5,7 +5,7 @@ SUBSCRIBE, UNSUBSCRIBE, and PUBLISH (in cases where QoS > 0) Control Packets
 MUST contain a non-zero 16-bit Packet Identifier. 
 ### MQTT-2.3.1-2
 Each time a Client sends a new packet of one of these types it MUST assign it a 
-currently unused Packet Identifier [].
+currently unused Packet Identifier.
 ### MQTT-2.3.1-3
 If a Client re-sends a particular Control 
 Packet, then it MUST use the same Packet Identifier in subsequent re-sends of 
