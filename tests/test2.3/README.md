@@ -42,6 +42,5 @@ UNSUBSCRIBE Packet respectively
 |       | S1 subscribe home/room q0
 |       | S2 subscribe home/room q1
 |       | S3 subscribe home/room q2
-| 2     | P1 publish home/room q1
-|       | P2 publish home/room q2
-| 5     | S1,S2,S3,P1,P2 disconnect
+| 2     | P1 publish home/room q1 'on'
+|       | P2 publish home/room q2 'off'
