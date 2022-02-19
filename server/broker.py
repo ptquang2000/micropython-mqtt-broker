@@ -216,8 +216,7 @@ class Client():
                         self.error_handler(e)
                     break
                 else:
-                    with Client.s_lock:
-                        self >> packet
+                    self >> packet
                     self.keep_alive()
             except OSError as e:
                 self.disconnect(e)
