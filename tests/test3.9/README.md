@@ -12,8 +12,8 @@ SUBACK return codes other than 0x00, 0x01, 0x02 and 0x80 are reserved and MUST N
 
 | Time  | |
 | ---   | --- |
-| 0     | client connect
-|       | client subscribe
+| 0     | subscriber connect
+|       | subscriber subscribe
 |       | sport/tennis/player1 q0
 |       | sport/tennis/player1/ranking q1
 |       | sport/tennis/player1/score/wimbledon q2

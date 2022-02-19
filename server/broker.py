@@ -153,7 +153,7 @@ class Client():
     
     def log_broker(self):
         print('\n========= BROKER LOGS ==========')
-        print('<------ Topics -->')
+        print('<------ Topics -->',end='')
         print('{}'.format(str(Client.topics)))
         print('<----- Clean Session --->')
         for client in Client.clean_sessions:
