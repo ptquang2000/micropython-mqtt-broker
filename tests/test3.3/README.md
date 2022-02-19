@@ -56,5 +56,3 @@ Server
 |8      | S3 subscribe house/garage, house/room
 |9      | P publish house/garage, house/room ''
 |10     | S4 subscribe house/garage, house/room
-|       | S1,S2,P disconnect
-|11     | S3,S4 disconnect

@@ -52,6 +52,6 @@ services:
     build: ../client
     volumes:
       - ./publisher.py:/client/publisher.py
-    command: python publisher.py broker
+    command: python publisher.py
     depends_on:
       - broker
