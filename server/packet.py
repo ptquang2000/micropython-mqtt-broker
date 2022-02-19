@@ -1,4 +1,5 @@
 import json
+from collections import OrderedDict
 
 
 if __name__ == 'packet':
@@ -298,13 +299,11 @@ class Packet():
             topic_filter, buffer = utf8_encoded_string(buffer)
             requested_qos, buffer = '{0:08b}'.format(buffer[0]), buffer[1:]
             try:
-                self._payload['topic_filters'].update(
-                    {topic_filter.decode('utf-8'):  requested_qos[6:]}
-                )
+                self._payload['topic_filters'][topic_filter.decode('utf-8')] = requested_qos[6:]
             except KeyError:
-                self._payload.update({'topic_filters': 
-                    {topic_filter.decode('utf-8'):  requested_qos[6:]}
-                })
+                self._payload.update({'topic_filters': OrderedDict(
+                    [(topic_filter.decode('utf-8'), requested_qos[6:])]
+                )})
 
 
     def unsubscribe_request(self, buffer):

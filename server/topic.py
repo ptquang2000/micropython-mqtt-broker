@@ -52,7 +52,7 @@ class Topic():
             pass
         finally:
             self._subscriber_qos[client.identifier] =  min([
-                self._qos_level, 
+                self._qos_level,
                 Topic._max_qos, 
                 qos])
 
