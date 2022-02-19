@@ -6,7 +6,8 @@ services:
     build: ../broker
     volumes:
       - ../../server:/broker/server
-    command: /broker/micropython/ports/unix/micropython server/broker.py broker
+      - ./main.py:/broker/main.py
+    command: /broker/micropython/ports/unix/micropython main.py 
     logging:
       driver: none
 
@@ -16,8 +17,8 @@ services:
     volumes:
       - ./subscriber1.py:/client/subscriber.py
     command: python subscriber.py
-  depends_on:
-      - broker
+    depends_on:
+        - broker
 
   subscriber2:
     container_name: subscriber2
@@ -25,12 +26,14 @@ services:
     volumes:
       - ./subscriber2.py:/client/subscriber.py
     command: python subscriber.py
+    depends_on:
+      - broker
 
   publisher:
     container_name: publisher
     build: ../client
     volumes:
       - ./publisher.py:/client/publisher.py
-    command: python publisher.py broker
+    command: python publisher.py
     depends_on:
       - broker

@@ -20,10 +20,8 @@ specified in the Topic Filter
 |           | P publish house/garage/main-light q0 'on',
 |           | P publish house/main-door q0 'on',
 |           | P publish house q0 'on'
-| 5         | P publish house/room/main-light q0 'off',
+| 2         | P publish house/room/main-light q0 'off',
 |           | P publish house/room/side-light q0 'off',
 |           | P publish house/garage/main-light q0 'off',
 |           | P publish house/main-door q0 'off',
 |           | P publish house q0 'off'
-| 10        | P publish ... 'on'
-| ...       | ...
