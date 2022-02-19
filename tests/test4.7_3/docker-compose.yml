@@ -12,14 +12,16 @@ services:
 
   subscriber1:
     container_name: subscriber1
-    image: client
+    build: ../client
     volumes:
       - ./subscriber1.py:/client/subscriber.py
     command: python subscriber.py
+    depends_on:
+      - broker
 
   subscriber2:
     container_name: subscriber2
-    image: client
+    build: ../client
     volumes:
       - ./subscriber2.py:/client/subscriber.py
     command: python subscriber.py
@@ -28,7 +30,7 @@ services:
 
   subscriber3:
     container_name: subscriber3
-    image: client
+    build: ../client
     volumes:
       - ./subscriber3.py:/client/subscriber.py
     command: python subscriber.py
@@ -37,7 +39,7 @@ services:
 
   subscriber4:
     container_name: subscriber4
-    image: client
+    build: ../client
     volumes:
       - ./subscriber4.py:/client/subscriber.py
     command: python subscriber.py
@@ -46,7 +48,7 @@ services:
 
   subscriber5:
     container_name: subscriber5
-    image: client
+    build: ../client
     volumes:
       - ./subscriber5.py:/client/subscriber.py
     command: python subscriber.py
@@ -55,7 +57,7 @@ services:
 
   subscriber6:
     container_name: subscriber6
-    image: client
+    build: ../client
     volumes:
       - ./subscriber6.py:/client/subscriber.py
     command: python subscriber.py
@@ -64,7 +66,7 @@ services:
 
   subscriber7:
     container_name: subscriber7
-    image: client
+    build: ../client
     volumes:
       - ./subscriber7.py:/client/subscriber.py
     command: python subscriber.py
@@ -73,7 +75,7 @@ services:
 
   publisher:
     container_name: publisher
-    image: client
+    build: ../client
     volumes:
       - ./publisher.py:/client/publisher.py
     command: python publisher.py broker

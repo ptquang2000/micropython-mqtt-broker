@@ -12,14 +12,18 @@ services:
 
   client1:
     container_name: client1
-    image: client
+    build: ../client
     volumes:
       - ./client.py:/client/client.py
     command: python client.py
+    depends_on:
+      - broker
   
   client2:
     container_name: client2
-    image: client
+    build: ../client
     volumes:
       - ./client.py:/client/client.py
     command: python client.py
+    depends_on:
+      - broker

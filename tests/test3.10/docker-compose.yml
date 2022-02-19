@@ -12,7 +12,7 @@ services:
       
   subscriber1:
     container_name: subscriber1
-    image: client
+    build: ../client
     volumes:
       - ./subscriber1.py:/client/subscriber.py
     command: python subscriber.py

@@ -12,7 +12,7 @@ services:
 
   subscriber1:
     container_name: subscriber1
-    image: client
+    build: ../client
     volumes:
       - ./subscriber1.py:/client/subscriber.py
     command: python subscriber.py
@@ -21,14 +21,14 @@ services:
 
   subscriber2:
     container_name: subscriber2
-    image: client
+    build: ../client
     volumes:
       - ./subscriber2.py:/client/subscriber.py
     command: python subscriber.py
 
   publisher:
     container_name: publisher
-    image: client
+    build: ../client
     volumes:
       - ./publisher.py:/client/publisher.py
     command: python publisher.py broker

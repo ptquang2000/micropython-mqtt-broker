@@ -227,7 +227,7 @@ class Topic():
 
 
     def __str__(self):
-        buffer = '\n[ {} ]'.format(self.topic_filter)
+        buffer = '[ {} ]'.format(self.topic_filter)
         if self._subscription:
             for subscriber in self._subscription:
                 buffer += '\n\t> {} : {}'.format(subscriber, self._subscriber_qos[subscriber.identifier])

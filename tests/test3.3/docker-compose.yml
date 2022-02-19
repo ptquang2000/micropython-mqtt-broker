@@ -12,7 +12,7 @@ services:
 
   subscriber1:
     container_name: subscriber1
-    image: client
+    build: ../client
     volumes:
       - ./subscriber1.py:/client/subscriber.py
     command: python subscriber.py
@@ -21,7 +21,7 @@ services:
 
   subscriber2:
     container_name: subscriber2
-    image: client
+    build: ../client
     volumes:
       - ./subscriber2.py:/client/subscriber.py
     command: python subscriber.py
@@ -30,7 +30,7 @@ services:
 
   subscriber3:
     container_name: subscriber3
-    image: client
+    build: ../client
     volumes:
       - ./subscriber3.py:/client/subscriber.py
     command: python subscriber.py
@@ -39,7 +39,7 @@ services:
 
   subscriber4:
     container_name: subscriber4
-    image: client
+    build: ../client
     volumes:
       - ./subscriber4.py:/client/subscriber.py
     command: python subscriber.py
@@ -48,7 +48,7 @@ services:
   
   publisher:
     container_name: publisher
-    image: client
+    build: ../client
     volumes:
       - ./publisher.py:/client/publisher.py
     command: python publisher.py broker

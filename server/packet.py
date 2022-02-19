@@ -141,25 +141,25 @@ class Packet():
 
 
     def __str__(self):
-        out = '\n[{0}]'.format(PACKET_NAME[self._packet_type])
-        out += '\n[Fixed Header]'
-        out += '\n\tpacket type: {0}\n\tflags: {1:04b}'.format(
+        out = '[{0}]'.format(PACKET_NAME[self._packet_type])
+        out += '\n[Fixed Header] '
+        out += 'packet type: {0}, flags: {1:04b}'.format(
                 self._packet_type , self._flag_bits)
-        out += '\n[Variable Header]'
+        out += '\n[Variable Header] '
         for key, val in self._variable_header.items():
-            out += '\n\t{0}: \t{1}'.format(key.replace('_', ' '), val)    
-        out += '\n[Payload]'
+            out += '{0}: {1}, '.format(key.replace('_', ' '), val)    
+        out += '\n[Payload] '
         for key, val in self._payload.items():
             if isinstance(val, dict):
-                out += '\n\t{0}:'.format(str(key, 'utf-8').replace('_', ' '))
+                out += '{0}:'.format(str(key, 'utf-8').replace('_', ' '))
                 for key0, val0 in val.items():
-                    out += '\n\t\t{0} : {1}'.format(str(key0, 'utf-8'), str(val0, 'utf-8'))
+                    out += '{0} : {1}, '.format(str(key0, 'utf-8'), str(val0, 'utf-8'))
             elif isinstance(val, list):
-                out += '\n\t{0}:'.format(str(key, 'utf-8').replace('_', ' '))
+                out += '{0}:'.format(str(key, 'utf-8').replace('_', ' '))
                 for e in val:
-                    out += '\n\t\t{0}'.format(str(e, 'utf-8'))
+                    out += '{0}, '.format(str(e, 'utf-8'))
             else:
-                out += '\n\t{0}: \t{1}'.format(str(key, 'utf-8').replace('_', ' '), str(val, 'utf-8'))
+                out += '{0}: {1}, '.format(str(key, 'utf-8').replace('_', ' '), str(val, 'utf-8'))
         return out
 
 

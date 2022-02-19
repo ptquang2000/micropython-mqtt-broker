@@ -1,8 +1,13 @@
 # Tested usecase - SUBACK
 
-###  MQTT-3.9.3-1
+## Mandatory normative statements
+
+### MQTT-3.9.3-1
+
 The order of return codes in the SUBACK Packet MUST match the order of Topic Filters in the SUBSCRIBE Packet
+
 ### MQTT-3.9.3-2
+
 SUBACK return codes other than 0x00, 0x01, 0x02 and 0x80 are reserved and MUST NOT be used
 
 | Time  | |

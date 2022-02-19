@@ -6,7 +6,6 @@ from paho.mqtt import client as mqtt_client
 broker = 'broker'
 client_id = f'subscriber1'
 
-
 def on_log(client, userdata, level, buf):
     print('log:', buf)
 

@@ -1,3 +1,4 @@
+import gc
 import socket
 import _thread
 import re
@@ -113,7 +114,7 @@ class Client():
         else:
             Client.clean_sessions.pop(self._client_id, None)
             if self._client_id in Client.sessions:
-                Client.sessions[self._client_id].disconnect('Duplicate ID')
+                Client.sessions[self._client_id].disconnect(MQTTProtocolError('Duplicate ID'))
             Client.sessions[self._client_id] = self
 
     
@@ -136,30 +137,30 @@ class Client():
 
 
     def log(self, packet):
-        print('\n<----- Client ID:\t{} \t----->'.format(str(self.identifier, "utf-8")))
+        print('\n<----- Client ID: {} in {}\t----->'.format(str(self.identifier, "utf-8"), hex(_thread.get_ident())))
         print('{}'.format(str(packet)))
-        print('\nSent Queue')
+        if self._sent_queue: print('Sent Queue')
         for _, packet in self._sent_queue.items():
             print(packet)
-        print('\nPending Queue')
+        if self._pending_queue: print('Pending Queue')
         for _, packet in self._pending_queue.items():
             print(packet)
-        print('\nAcknownledge Queue')
+        if self._ack_queue: print('Acknownledge Queue')
         for _, packet in self._ack_queue.items():
             print(packet)
-        print('\n<------------------------------>\n')
+        print('<------------------------------>\n')
 
     
-    def log_topic(self):
-        print('\n========= TOPIC LOGS ==========')
-        print('\n<------ Topics -->')
+    def log_broker(self):
+        print('\n========= BROKER LOGS ==========')
+        print('<------ Topics -->')
         print('{}'.format(str(Client.topics)))
-        print('\n<----- Clean Session --->')
+        print('<----- Clean Session --->')
         for client in Client.clean_sessions:
-            print('\n{}'.format(str(client)))
-        print('\n<----- Session --------->')
+            print('{}, '.format(str(client)))
+        print('<----- Session --------->')
         for client in Client.sessions:
-            print('\n{}'.format(str(client)))
+            print('{}, '.format(str(client)))
 
     
     def error_handler(self, e, packet=None):    
@@ -177,59 +178,52 @@ class Client():
         
 
     def disconnect(self, cause):
-        print('\n*** Closing Connection From {} ***'.format(self.identifier))
-        print('\nCause: {}'.format(cause))
-        print('\nRemain Time: {0}'.format(self.remaining_time))
-        print('\nSent Queue')
+        print('\n*** Closing Connection From {} By {} ***'.format(self.identifier, hex(_thread.get_ident())))
+        print('Cause: {}'.format(cause))
+        print('Remain Time: {0}'.format(self.remaining_time))
+        if self._sent_queue: print('\nSent Queue')
         for _, packet in self._sent_queue.items():
             print(packet)
-        print('\nPending Queue')
+        if self._pending_queue: print('\nPending Queue')
         for _, packet in self._pending_queue.items():
             print(packet)
-        print('\nAcknownledge Queue')
+        if self._ack_queue: print('\nAcknownledge Queue')
         for _, packet in self._ack_queue.items():
             print(packet)
-        print('\n*********************************\n')
+        print('*********************************\n')
         for topic_filter in self._subscriptions:
             topic = Client.topics.get_topic(topic_filter)
             topic.pop(self)
-        Client.sessions.pop(self._client_id, None)
         self._conn.close()
-
+        if type(cause).__name__ == 'OSError' and cause.value == 9:
+            return
+        Client.sessions.pop(self._client_id)
 
     def worker(self):
-        try:
-            while self._interval_time == 0 or self.remaining_time > 0:
-                try:
-                    buffer = self._conn.recv(1)
-                    if not buffer:
-                        self.disconnect('Socket close')
-                        break
-                    try:
-                        Client.s_lock.acquire()
-                        packet = pk.Packet(buffer)
-                        self << packet
-                    except MQTTProtocolError as e:
-                        if 'packet' in locals():
-                            self.error_handler(e, packet)
-                        else:
-                            self.error_handler(e)
-                        break
-                    else:
-                        self >> packet
-                        self.keep_alive()
-                    finally:
-                        Client.s_lock.release()
-                except OSError as e:
-                    self.disconnect(e)
+        while self._interval_time == 0 or self.remaining_time > 0:
+            try:
+                if not (buffer:= self._conn.recv(1)):
+                    self.disconnect('Socket close')
                     break
-            else:
-                self.disconnect('Timeout')
-        except Exception as e:
-            print('\nCAUGHT EXCEPTION: {}\n'.format(str(repr(e))))
-            # sys.print_exception(e)
-            raise e
-        _thread.exit()
+                try:
+                    packet = pk.Packet(buffer)
+                    with Client.s_lock:
+                        self << packet
+                except MQTTProtocolError as e:
+                    if 'packet' in locals():
+                        self.error_handler(e, packet)
+                    else:
+                        self.error_handler(e)
+                    break
+                else:
+                    with Client.s_lock:
+                        self >> packet
+                    self.keep_alive()
+            except OSError as e:
+                self.disconnect(e)
+                break
+        else:
+            self.disconnect('Timeout')
 
 
     def store_message(self, packet, state):
@@ -338,10 +332,10 @@ class Client():
         except KeyError:
             pass
         else:
-            print('\nSENDING {} TO CLIENT WITH ID {}\n'.format(pk.PACKET_RESPONSE[packet_name], self.identifier))
+            print('SENDING {} TO CLIENT WITH ID {}'.format(pk.PACKET_RESPONSE[packet_name], self.identifier))
             self._conn.write(reponse)
 
-        self.log_topic()
+        self.log_broker()
 
 
 class Broker():
