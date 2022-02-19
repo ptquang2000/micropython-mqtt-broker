@@ -57,7 +57,7 @@ class TestSubscriber3(TestCase):
             call('Received SUBACK'),
             call("Received PUBLISH (d0, q0, r0, m0), 'house/garage', ...  (0 bytes)"),
             call("Received PUBLISH (d0, q0, r0, m0), 'house/room', ...  (0 bytes)")
-        ],any_order=False)
+        ],any_order=True)
 
 
     def test_on_subscribe(self):

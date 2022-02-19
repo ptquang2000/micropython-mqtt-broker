@@ -81,7 +81,7 @@ class TestPublisher(TestCase):
             call("Sending PUBLISH (d0, q0, r1, m4), 'b'house/room'', ... (3 bytes)"),
             call("Sending PUBLISH (d0, q0, r1, m5), 'b'house/garage'' (NULL payload)"),
             call("Sending PUBLISH (d0, q0, r1, m6), 'b'house/room'' (NULL payload)")
-        ],any_order=False)
+        ],any_order=True)
 
 
     def test_on_publish(self):

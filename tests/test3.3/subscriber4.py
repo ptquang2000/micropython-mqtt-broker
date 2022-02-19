@@ -53,7 +53,7 @@ class TestSubscriber4(TestCase):
             call('Received CONNACK (0, 0)'),
             call("Sending SUBSCRIBE (d0, m1) [(b'house/garage', 0), (b'house/room', 0)]"),
             call('Received SUBACK'),
-        ],any_order=False)
+        ],any_order=True)
 
 
     def test_on_subscribe(self):

@@ -15,4 +15,3 @@ retained message
 |2      | P publish r1 house/room 'on'
 |4      | P publish r0 house/room 'off'
 |6      | S2 subscribe house/room
-|8      | S1,S2,P disconnect
