@@ -2,5 +2,5 @@
 
 * cd to test directory and run command
 ```bash
-sudo docker-compose up
+sudo docker-compose up --build
 ```
