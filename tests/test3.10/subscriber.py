@@ -86,6 +86,7 @@ class TestSubscriber(TestCase):
             call(2),
             call(3),
             call(4),
+            call(6),
         ], any_order=False)
 
     
