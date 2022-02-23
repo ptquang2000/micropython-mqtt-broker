@@ -431,6 +431,8 @@ class MQTTMessage(object):
 
 
 class Client(object):
+    
+
     """MQTT version 3.1/3.1.1/5.0 client class.
 
     This is the main class for use communicating with an MQTT broker.
@@ -537,6 +539,12 @@ class Client(object):
         self._connect_timeout = 5.0
         self._client_mode = MQTT_CLIENT
 
+        self.suppress_puback = False
+        self.suppress_pubrec = False
+        self.suppress_pubrel = False
+        self.suppress_pubcomp = False
+        self.suppress_publish = False
+        
         if protocol == MQTTv5:
             if clean_session is not None:
                 raise ValueError('Clean session is not used for MQTT 5.0')
@@ -3026,14 +3034,24 @@ class Client(object):
         elif cmd == PINGRESP:
             return self._handle_pingresp()
         elif cmd == PUBACK:
+            if self.suppress_puback:
+                return 0
             return self._handle_pubackcomp("PUBACK")
         elif cmd == PUBCOMP:
+            if self.suppress_pubcomp:
+                return 0
             return self._handle_pubackcomp("PUBCOMP")
         elif cmd == PUBLISH:
+            if self.suppress_publish:
+                return 0
             return self._handle_publish()
         elif cmd == PUBREC:
+            if self.suppress_pubrec:
+                return 0
             return self._handle_pubrec()
         elif cmd == PUBREL:
+            if self.suppress_pubrel:
+                return 0
             return self._handle_pubrel()
         elif cmd == CONNACK:
             return self._handle_connack()

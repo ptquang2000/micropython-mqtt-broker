@@ -164,6 +164,16 @@ class Packet():
         return out
 
 
+    def clone(self):
+        packet = Packet()
+        packet._packet_type = self._packet_type
+        packet._flag_bits = self._flag_bits
+        packet._remain_length = self._remain_length
+        packet._variable_header = dict(self._variable_header)
+        packet._payload = dict(self._payload)
+        return packet
+
+
     def serialize(self):
         return json.dumps({
             '_packet_type': self._packet_type,

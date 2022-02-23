@@ -121,7 +121,7 @@ class Topic():
         client.conn.write(packet.publish)
         if packet.qos_level != pk.QOS_0:
             packet.flag_bits = packet.flag_bits | 0x08
-            client.store_message(packet, 'sent')
+            client.store_message(packet.clone(), 'sent')
 
     
     def number_sign_retain(self, client, qos):
@@ -196,7 +196,7 @@ class Topic():
                 if qos_level != pk.QOS_0:
                     # Set DUP for re-send
                     packet.flag_bits = packet.flag_bits | 0x08
-                    subscriber.store_message(packet, 'sent')
+                    subscriber.store_message(packet.clone(), 'sent')
             # Reset packet
             packet.flag_bits = origin_flag_bits
             if packet.qos_level != pk.QOS_0:
@@ -207,9 +207,7 @@ class Topic():
 
         if retain == '1' and topic_levels[0] not in self._children:
             self._children[topic_levels[0]] = Topic(
-                topic_name=topic_levels[0], 
-                app_msg=packet.application_message,
-                qos=packet.qos_level,
+                topic_name=topic_levels[0],
                 parent=self)
             self.clean_up()
         try:

@@ -95,6 +95,7 @@ class Client():
             else:
                 old_session = Client.clean_sessions[self._client_id]
                 self._subscriptions = old_session._subscriptions
+                self._packet_identifier = old_session._packet_identifier
                 for topic_filter, qos in self._subscriptions.items():
                     topic = Client.topics.get_topic(topic_filter, self, qos)
                     topic.add(self, qos)
@@ -197,7 +198,7 @@ class Client():
         self._conn.close()
         if type(cause).__name__ == 'OSError' and cause.value == 9:
             return
-        Client.sessions.pop(self._client_id)
+        Client.sessions.pop(self._client_id, None)
 
     def worker(self):
         while self._interval_time == 0 or self.remaining_time > 0:
@@ -212,10 +213,12 @@ class Client():
                 except MQTTProtocolError as e:
                     if 'packet' in locals():
                         self.error_handler(e, packet)
+                        self.log(packet)
                     else:
                         self.error_handler(e)
                     break
                 else:
+                    self.log(packet)
                     self >> packet
                     self.keep_alive()
             except OSError as e:
@@ -226,7 +229,7 @@ class Client():
 
 
     def store_message(self, packet, state):
-        print('\n{} STORE PACKET {} {} TO {}\n'.format(
+        print('\n{} STORE PACKET {} PID:{} TO {}\n'.format(
             self.identifier,
             pk.PACKET_NAME[packet.packet_type],
             packet.packet_identifier,
@@ -236,7 +239,7 @@ class Client():
 
 
     def discard_message(self, packet, state):
-        print('\n{} DISCARD PACKET {} {} FROM {}\n'.format(
+        print('\n{} PACKET {} DISCARD PACKET {} FROM {}\n'.format(
             self.identifier,
             pk.PACKET_NAME[packet.packet_type],
             packet.packet_identifier,
@@ -259,9 +262,6 @@ class Client():
         if pk.CONNECT != packet.packet_type and not self.identifier:
             raise MQTTProtocolError('MQTT-3.1.0-1')
         
-        if pk.CONNECT != packet.packet_type:
-            self.log(packet)
-
         # Actions
         if pk.CONNECT == packet.packet_type:
             packet.variable_header.update({'session_present': '0'})
@@ -319,9 +319,6 @@ class Client():
         elif pk.DISCONNECT == packet.packet_type:
             raise MQTTProtocolError('Client Disconnect')
 
-        if pk.CONNECT == packet.packet_type:
-            self.log(packet)
-
 
     # Response Packet
     def __rshift__(self, packet):
@@ -365,6 +362,7 @@ class Broker():
                     client = Client(None, None)
                     client._client_id = client_json['_client_id']
                     client._subscriptions = client_json['_subscriptions']
+                    client._packet_identifier = client_json['_packet_identifier']
                     for queue_type in ['_sent', '_pending', '_ack']:
                         queue = client_json['{}_queue'.format(queue_type)]
                         packets = dict()

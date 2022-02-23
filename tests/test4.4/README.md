@@ -76,20 +76,16 @@ Packets using their original Packet Identifiers
 
 | Time      | |
 | ---       | ---
-|           | S1,P1 connect
-| 1         | S1 subscribe /house/room q0
-|           | S1 subscribe /house/room/gargae q1
-|           | S1 subscribe /house/room/main-light q2
-| 10        | P1 publish /house/room q0 'on'
-|           | P1 publish /house/gargage q1 'on'
-|           | P1 publish /house/room/main-light q2 'on'
-| 11        | P1 publish /house/room q0 'off'
-|           | P1 publish /house/gargage q1 'off'
-|           | exit P1 thread
-|           | P1 reconnect
-|           | P1 publish /house/room/main-light q2 'off'
-| 12        | P1 publish /house/room q0 'off'
-|           | P1 publish /house/gargage q1 'off'
-|           | P1 publish /house/room/main-light q2 'off'
-|           | P1 disconnect
-|           | P1 reconnect
+|           | S1,P1 connect clean session False
+|           | P1 publish  /house/room1 q1 r1 'room1-r'
+| 1         | S1 subscribe /house/room1 q1
+| 2         | S1,P1 exit
+| 4         | Broker timeout
+|           | Broker start
+| 8         | S1,P1 connect
+| 10        | P1 publish /house/room1 q1 r1 ''
+| 11        | S1 suppress receving publish
+| 12        | P1 suppress receving puback
+| 14        | P1 publish /house/room1 q1 r0 'room1'
+| 16        | S1 un-suppress receving publish
+|           | P1 un-suppress receving puback
