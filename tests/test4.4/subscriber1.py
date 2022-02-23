@@ -30,6 +30,7 @@ class TestSubscriber1(TestCase):
         print('receive message:', str(message.payload.decode('utf8')), ', topic:', message.topic, ', retain:', message.retain)
         TestSubscriber1._on_message(str(message.payload.decode('utf8')), message.topic, message.retain)
 
+
     @classmethod
     def setUpClass(cls):
         TestSubscriber1._on_log = Mock()
@@ -51,7 +52,7 @@ class TestSubscriber1(TestCase):
         sleep(1)
         client.disconnect()
 
-        sleep(8)
+        sleep(6)
         client = mqtt_client.Client(client_id, protocol=mqtt_client.MQTTv311, clean_session=False)
         client.on_log = cls.on_log
         client.on_message = cls.on_message
@@ -84,18 +85,21 @@ class TestSubscriber1(TestCase):
     
     def test_on_log(self):
         TestSubscriber1._on_log.assert_has_calls([
-            call("Sending CONNECT (u0, p0, wr0, wq0, wf0, c0, k60) client_id=b'subscriber1'"), #2
+            call("Sending CONNECT (u0, p0, wr0, wq0, wf0, c0, k60) client_id=b'subscriber1'"), #3
             call('Received CONNACK (0, 0)'),
-            call('Received CONNACK (1, 0)'),
+            call('Received CONNACK (1, 0)'), #2
             call("Sending SUBSCRIBE (d0, m1) [(b'house/room1', 1)]"),
             call("Received SUBACK"),
             call("Received PUBLISH (d0, q1, r1, m1), 'house/room1', ...  (7 bytes)"),
             call("Sending PUBACK (Mid: 1)"),
-            call("Sending PUBACK (Mid: 1)"),
-            call("Received PUBLISH (d0, q1, r0, m1), 'house/room1', ...  (0 bytes)"),
-            call("Sending PUBACK (Mid: 1)"),
+            call("Sending PUBACK (Mid: 2)"),
+            call("Received PUBLISH (d0, q1, r0, m3), 'house/room1', ...  (0 bytes)"),
+            call("Sending PUBACK (Mid: 3)"),
+            call("Received PUBLISH (d1, q1, r0, m4), 'house/room1', ...  (5 bytes)"),
+            call("Sending PUBACK (Mid: 4)"),
+            call("Sending DISCONNECT") #2
         ],any_order=True)
-        self.assertEqual(TestSubscriber1._on_log.call_count, 12)
+        self.assertEqual(TestSubscriber1._on_log.call_count, 18)
 
 
     def test_on_subscribe(self):
@@ -111,7 +115,7 @@ class TestSubscriber1(TestCase):
             call('room1-r', 'house/room1', 1),
             call('', 'house/room1', 0),
         ], any_order=False)
-        self.assertEqual(TestSubscriber1._on_message.call_count, 3)
+        self.assertEqual(TestSubscriber1._on_message.call_count, 4)
 
 
 if __name__ == '__main__':

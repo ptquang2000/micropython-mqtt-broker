@@ -16,9 +16,9 @@ class TestSubscriber1(TestCase):
         TestSubscriber1._on_log(buf)
 
     
-    def on_publish(client, userdata, result):
-        print('result:', result)
-        TestSubscriber1._on_publish(result)
+    def on_publish(client, userdata, mid):
+        print('mid:', mid)
+        TestSubscriber1._on_publish(mid)
 
 
     @classmethod

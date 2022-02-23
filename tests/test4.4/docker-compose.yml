@@ -8,8 +8,8 @@ services:
       - ../../server:/broker/server
       - ./main.py:/broker/main.py
     command: /broker/micropython/ports/unix/micropython main.py 
-    # logging:
-    #   driver: none
+    logging:
+      driver: none
       
   subscriber1:
     container_name: subscriber1
@@ -20,8 +20,6 @@ services:
     command: python subscriber.py
     depends_on:
       - broker
-    # logging:
-    #   driver: none
 
   publisher1:
     container_name: publisher1
@@ -32,5 +30,3 @@ services:
     command: python publisher.py
     depends_on:
       - broker
-    # logging:
-    #     driver: none
