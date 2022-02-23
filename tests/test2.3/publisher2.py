@@ -14,16 +14,16 @@ def publish():
     
     client.loop_stop()
 
-class TestSubscriber2(TestCase):
+class TestPublisher2(TestCase):
 
     def on_log(client, userdata, level, buf):
         print('log:', buf)
-        TestSubscriber2._on_log(buf)
+        TestPublisher2._on_log(buf)
 
     
     def on_publish(client, userdata, mid):
         print('mid:', mid)
-        TestSubscriber2._on_publish(mid)
+        TestPublisher2._on_publish(mid)
 
 
     @classmethod
@@ -48,7 +48,7 @@ class TestSubscriber2(TestCase):
 
 
     def test_on_log(self):
-        TestSubscriber2._on_log.assert_has_calls([
+        TestPublisher2._on_log.assert_has_calls([
             call("Sending CONNECT (u0, p0, wr0, wq0, wf0, c1, k60) client_id=b'publisher2'"),
             call("Received CONNACK (0, 0)"),
             call("Sending PUBLISH (d0, q2, r0, m1), 'b'house/room'', ... (3 bytes)"),
@@ -59,7 +59,7 @@ class TestSubscriber2(TestCase):
 
 
     def test_on_publish(self):
-        TestSubscriber2._on_publish.assert_has_calls([
+        TestPublisher2._on_publish.assert_has_calls([
             call(1),
         ], any_order=False)
 

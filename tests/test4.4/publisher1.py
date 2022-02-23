@@ -94,7 +94,7 @@ class TestPublisher1(TestCase):
             call("Received CONNACK (0, 0)"),
             call("Received CONNACK (1, 0)"), #2
             call("Sending PUBLISH (d0, q1, r1, m1), 'b'house/room1'', ... (7 bytes)"),
-            call("Received PUBACK (Mid: 1)"),
+            call("Received PUBACK (Mid: 1)"), #2
             call("Sending PUBLISH (d0, q1, r1, m1), 'b'house/room1'' (NULL payload)"),
             call("Sending PUBLISH (d0, q1, r0, m2), 'b'house/room1'', ... (5 bytes)"),
             call("Sending DISCONNECT") #2

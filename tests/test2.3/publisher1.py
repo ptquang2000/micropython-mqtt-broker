@@ -9,16 +9,16 @@ broker = 'broker'
 client_id = f'publisher1'
 
 
-class TestSubscriber1(TestCase):
+class TestPublisher1(TestCase):
 
     def on_log(client, userdata, level, buf):
         print('log:', buf)
-        TestSubscriber1._on_log(buf)
+        TestPublisher1._on_log(buf)
 
     
     def on_publish(client, userdata, mid):
         print('mid:', mid)
-        TestSubscriber1._on_publish(mid)
+        TestPublisher1._on_publish(mid)
 
 
     @classmethod
@@ -43,7 +43,7 @@ class TestSubscriber1(TestCase):
 
 
     def test_on_log(self):
-        TestSubscriber1._on_log.assert_has_calls([
+        TestPublisher1._on_log.assert_has_calls([
             call("Sending CONNECT (u0, p0, wr0, wq0, wf0, c1, k60) client_id=b'publisher1'"),
             call("Received CONNACK (0, 0)"),
             call("Sending PUBLISH (d0, q1, r0, m1), 'b'house/room'', ... (2 bytes)"),
@@ -52,7 +52,7 @@ class TestSubscriber1(TestCase):
 
 
     def test_on_publish(self):
-        TestSubscriber1._on_publish.assert_has_calls([
+        TestPublisher1._on_publish.assert_has_calls([
             call(1),
         ], any_order=False)
 
